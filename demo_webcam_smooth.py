@@ -24,8 +24,9 @@ import cv2
 import time
 import matplotlib.pyplot as plt
 
+from masque_robuste import recup_masque
 
-from alignment import prepare_dataset,execute_global_registration,execute_fast_global_registration,register_via_correspondences,draw_registration_result,scale_pcd,aligne_boite,custom_draw_geometry,aligne_boite_origine
+from alignment import register_via_correspondences,scale_pcd
 from alignment import align_and_center_pcds
 import video_utils
 import pyrealsense2 as rs
@@ -108,6 +109,11 @@ def main(args):
     pre_ver = None
     i=0
     First=True
+    position =0
+    liste_position = ['face','droite','gauche','haut','bas']
+    liste_masque_position = []
+    
+    
     try:
         while True:
             frames = pipeline.wait_for_frames()
@@ -175,6 +181,29 @@ def main(args):
                     tri_copy = tddfa.tri
                     masque = pv.PolyData.from_regular_faces(ver_ave.T,tddfa.tri)
                     
+                    if position <= 4:
+                        #Display l'image pour que l'utilisateur puisse guider le patient
+                        img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)
+                        cv2.putText(img_draw,'<--',(250,250),cv2.FONT_HERSHEY_SIMPLEX,100,(255,0,0),10,2)
+                        cv2.imshow('image', img_draw)
+                        queue_ver.popleft()
+                        queue_frame.popleft()
+                        
+                        
+                        
+                        #Récupère le masque quand l'utilisateur appuie sur entrée
+                        k = cv2.waitKey(13)
+                        if k ==13:
+                            liste_masque_position.append(recup_masque(ver_ave.T,tddfa.tri,liste_position[position]))
+                            position+=1
+                        
+                        if k == ord('q'):
+                            break
+                        continue
+                       
+                        
+                        
+                        
                     if frame_presente == 1 :
                         # Recupération du nez a partir du masque, sous la forme de nuage de point
                         nez_point_cloud = np.ndarray((1,3))

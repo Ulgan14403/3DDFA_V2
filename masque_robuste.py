@@ -39,6 +39,19 @@ def fusion_masque(masque):
     
     return(fusion)
 
+
+
+#Todo créer une fonction pour recuperer les masques dans différentes configurations
+
+def recup_masque(points,tri,nom):
+    masque = pv.PolyData.from_regular_faces(points,tri)
+    masque.save(f'masque_{nom}.stl')
+    return(masque)
+
+   
+
+
+#Todo faire une fusion des masques (réflechir aux différentes façon de faire) 
 def main():
     return('masque robuste')
 

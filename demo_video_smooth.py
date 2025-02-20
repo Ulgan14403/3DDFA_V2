@@ -197,19 +197,6 @@ def main(args):
                         source,facteur = scale_pcd(source,target)
                         
                     
-                        # source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,frame_presente,1)
-                        # result_ransac = execute_global_registration(source_down, target_down,
-                        #                             source_fpfh, target_fpfh,
-                        #                             1)
-                        ''''
-                        rotations[k] = result_ransac.transformation[:3,:3]
-                        translations[k] = result_ransac.transformation[:3,3]
-                        '''
-                        
-                        #transformation_nez[k] = result_ransac.transformation
-                        #draw_registration_result(source,target,result_ransac.transformation)
-
-                    
                     #recuperer les transformations
                     R_align,centroid_tgt,centroid_src,icp_result = align_and_center_pcds(source,target)
                     
