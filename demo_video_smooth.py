@@ -28,8 +28,7 @@ from alignment import prepare_dataset,execute_global_registration,execute_fast_g
 from alignment import align_and_center_pcds
 import video_utils
 
-#test pour github
-#pourquoi ne fonctionnes tu pas ?
+
 def fonction(fonction):
     return fonction
 def main(args):
