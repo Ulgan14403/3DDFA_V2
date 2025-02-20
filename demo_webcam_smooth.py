@@ -24,7 +24,7 @@ import cv2
 import time
 import matplotlib.pyplot as plt
 
-from masque_robuste import recup_masque
+from masque_robuste import recup_masque,fusion_masque_moyenne
 
 from alignment import register_via_correspondences,scale_pcd
 from alignment import align_and_center_pcds
@@ -111,6 +111,7 @@ def main(args):
     First=True
     position =0
     liste_position = ['face','droite','gauche','haut','bas']
+    liste_indication = ['FACE','-->','<--',r' /\ ',r' \/ '] 
     liste_masque_position = []
     
     
@@ -182,9 +183,12 @@ def main(args):
                     masque = pv.PolyData.from_regular_faces(ver_ave.T,tddfa.tri)
                     
                     if position <= 4:
+                        
+                        indication = liste_indication[position]
+                        
                         #Display l'image pour que l'utilisateur puisse guider le patient
                         img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)
-                        cv2.putText(img_draw,'<--',(250,250),cv2.FONT_HERSHEY_SIMPLEX,100,(255,0,0),10,2)
+                        cv2.putText(img_draw,f'{indication}',(0,475),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,0),2,2)
                         cv2.imshow('image', img_draw)
                         queue_ver.popleft()
                         queue_frame.popleft()
@@ -200,8 +204,9 @@ def main(args):
                         if k == ord('q'):
                             break
                         continue
-                       
-                        
+                    if position == 5 :
+                        #todo faire une fonction pour faire un masue moyenne des autres 
+                        fusion_masque_moyenne(liste_position)
                         
                         
                     if frame_presente == 1 :

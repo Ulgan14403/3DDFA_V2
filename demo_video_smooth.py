@@ -240,7 +240,7 @@ def main(args):
                     
                 
                 else :
-                    par_frame_start = time.time()
+                    
                     #Original
                     #Fast Global Registration
                     
@@ -287,8 +287,7 @@ def main(args):
                         #Appliquer la transformation sur le modèle de visage
                         masque_modified = masque_modified.transform(result_ransac.transformation)
                             
-                    par_frame_end = time.time()-par_frame_start
-                    temps_par_frame.append(par_frame_end)
+                    
              
    
                 #Render le masque
