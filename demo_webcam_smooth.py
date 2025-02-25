@@ -24,7 +24,7 @@ import cv2
 import time
 import matplotlib.pyplot as plt
 
-from masque_robuste import recup_masque,fusion_masque_moyenne
+from masque_robuste import recup_masque,registration_pls_masques
 
 from alignment import register_via_correspondences,scale_pcd
 from alignment import align_and_center_pcds
@@ -205,8 +205,8 @@ def main(args):
                             break
                         continue
                     if position == 5 :
-                        #todo faire une fonction pour faire un masue moyenne des autres 
-                        fusion_masque_moyenne(liste_position)
+                        #todo faire une fonction pour faire un masque moyenne des autres 
+                        registration_pls_masques(liste_position)
                         
                         
                     if frame_presente == 1 :

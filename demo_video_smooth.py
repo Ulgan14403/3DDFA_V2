@@ -269,8 +269,6 @@ def main(args):
 
                     voxel_size = 1
                     
-                    # down sample les datasets
-                    #source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,frame_presente,voxel_size) #optionnel
                     try:                       
                         
                         result_ransac =register_via_correspondences(source,target,target_points,source_points)

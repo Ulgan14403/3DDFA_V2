@@ -3,7 +3,7 @@ import numpy as np
 from video_utils import plotMeshes
 from alignment import register_via_correspondences
 import open3d as o3d
-
+import copy
 
 #indices des différentes parties du masque prédit par 3ddfav2 
 # /!\ Si on effectue une transformation (changer le nez), ces indices ne sont plus valables /!\ 
@@ -25,25 +25,29 @@ def color_indx(mesh,idx):
 
 def fusion_masque(masque):
     masque_face,masque_droite,masque_gauche,masque_haut,masque_bas = masque[0],masque[1],masque[2],masque[3],masque[4]
-    fusion = np.zeros_like(masque_face)
-    #TODO Vérifier que les masques sont bien à position neutre
+    fusion = np.zeros_like(masque_face.points)
     
     for k in idx_droite :
-        fusion[k]= (0.7*masque_droite[k] + 0.4 * masque_face[k] + 0.2 * masque_bas[k] + 0.2 * masque_haut[k]) /4
+        fusion[k]= (7*masque_droite.points[k] + 4 * masque_face.points[k] ) /11
     
     for k in idx_gauche :
-        fusion[k]= (0.7*masque_gauche[k] + 0.4 * masque_face[k] + 0.2 * masque_bas[k] + 0.2 * masque_haut[k] ) /4
+        fusion[k]= (7*masque_gauche.points[k] + 4 * masque_face.points[k]  ) /11
     
     for k in idx_haut :
-        fusion[k]= (0.7*masque_haut[k] + 0.4 * masque_face[k] + 0.2 * masque_gauche[k] + 0.2 * masque_droite[k]) /4
+        fusion[k]=  (masque_face.points[k] + masque_gauche.points[k] +  masque_droite.points[k] )/3
     
     for k in idx_bas :
-        fusion[k]= (0.7*masque_bas[k] + 0.4 * masque_face[k] + 0.2 * masque_gauche[k] + 0.2 * masque_droite[k])/4
+        fusion[k]=   (masque_face.points[k] +  masque_gauche.points[k] +  masque_droite.points[k] )/3
         
     for k in idx_face :
-        fusion[k]= (0.7*masque_face[k] + 0.2 * masque_haut[k] + 0.2 * masque_bas[k] + 0.2 * masque_gauche[k] + 0.2 * masque_droite[k])/4
+        fusion[k]= (7*masque_face.points[k] + 2 * masque_gauche.points[k] + 2 * masque_droite.points[k])/11
     
-    return(fusion)
+    old_masque = copy.deepcopy(masque_face)
+    masque_face.points = fusion
+    #nouveau_masque = pv.PolyData(fusion)
+    
+    plotMeshes([old_masque,masque_face])
+    return(masque_face)
 
 
 def recup_masque(points,tri,nom):
@@ -52,7 +56,7 @@ def recup_masque(points,tri,nom):
     return(masque)
 
 
-def fusion_masque_moyenne(liste_masque):
+def registration_pls_masques(liste_masque):
     
     #Registration via correspondance pour aligner les masques
     target = o3d.geometry.PointCloud()
@@ -65,10 +69,8 @@ def fusion_masque_moyenne(liste_masque):
         source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(liste_masque[k].points.astype(np.float64)))
         result =register_via_correspondences(source,target,target_points,source_points)
         liste_masque[k]=liste_masque[k].transform(result)
-        
-        
     plotMeshes(liste_masque)
-
+    return(liste_masque)
 
 def main():
     return('masque robuste')
@@ -77,5 +79,7 @@ if __name__ == '__main__':
     liste_masque = []
     for k in liste_position:
         liste_masque.append(pv.read(fr"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque_{k}.stl"))
-    fusion_masque_moyenne(liste_masque)
+    liste_masque = registration_pls_masques(liste_masque)
+    masque_face = fusion_masque(liste_masque)
+        
     
