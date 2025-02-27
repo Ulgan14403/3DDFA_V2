@@ -164,8 +164,10 @@ def render(img):
     
 import copy
     
-def render(tm,img):
-    
+def create_scene(img,screen): 
+    '''
+    Créer la scène avec la bonne lumière, caméra et initialisation du fond
+    '''
     #Creation du mesh pour pyrender
     mesh = pyrender.Mesh.from_trimesh(tm)
     
@@ -175,19 +177,13 @@ def render(tm,img):
     
     #Creating camera
     intr = param_intrinsics()
-    intr.height = img.height #optimize paramètres pour l'image
+    intr.height = img.height 
     intr.width  = img.width 
     oc = pyrender.camera.IntrinsicsCamera(fx=intr.fx,fy=intr.fy,cx=960,cy=510,zfar=10000,name='main_camera')
     
     #Creation de la scene
     scene = pyrender.Scene(ambient_light=[0.3, 0.3, 0.3],bg_color=[1.0, 0.0, 0.0])
     
-    
-    #Creation de «l'écran» 
-    edge_lengths = np.array([np.shape(img)[1],np.shape(img)[0],1.0],np.float64)
-    print(edge_lengths)
-    scr_transform = np.eye(4)
-    screen = trimesh.creation.box(extents=edge_lengths,transform=scr_transform,bounds=None)
     
     
     #Creation de la texture du screen
@@ -222,7 +218,7 @@ def render(tm,img):
     nm = pyrender.Node(mesh=mesh, matrix=pose_mesh)
     nl = pyrender.Node(light=dl, matrix=pose_camera )
     nc = pyrender.Node(camera=oc, matrix=pose_camera)
-    n_scr = pyrender.Node(mesh=screen,matrix = pose_screen)
+    n_scr = pyrender.Node(name='screen',mesh=screen,matrix = pose_screen)
     
     #Ajout des nodes
     scene.add_node(npl)
@@ -231,30 +227,78 @@ def render(tm,img):
     scene.add_node(nc)
     scene.add_node(n_scr)
     
-    #Creer offscreenRenderer
-    r=pyrender.OffscreenRenderer(viewport_width=intr.width,
-                               viewport_height=intr.height,
+    # #Creer offscreenRenderer
+    # r=pyrender.OffscreenRenderer(viewport_width=intr.width,
+    #                            viewport_height=intr.height,
+    #                            point_size=1.0)
+    
+    
+    # color, depth = r.render(scene)
+    # r.delete()
+    
+    # #Afficher l'image
+    # color = cv2.cvtColor(color,cv2.COLOR_RGB2BGR)
+    # cv2.imshow('fenetre',color)
+    # cv2.waitKey()
+    return(scene)
+
+def update_screen(img,scene,screen):
+    '''
+    Update l'image de fond
+    '''
+    uv= [ # uv mapping
+         [0.0, 0.0],
+         [0.0, 0.0],
+         [0.0, 0.0],
+         [0.0, 1.0],
+         [0.0, 0.0],
+         [1.0, 0.0],
+         [0.0, 0.0],  
+         [1.0, 1.0],
+    ]
+    #Enlever l'ecran precedent
+    node_scr = scene.get_nodes(name='screen')
+    for i in node_scr:
+        scene.remove_node(i)
+    
+    #Ajouter un nouvel ecran avec la nouvelle texture
+    material = trimesh.visual.texture.SimpleMaterial(image=img)
+    color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img, material=material)
+    screen2=trimesh.Trimesh(vertices=screen.vertices, faces=screen.faces, visual=color_visuals, validate=True, process=False)
+    screen2 = pyrender.Mesh.from_trimesh(screen2)
+    n_scr = pyrender.Node(name='screen',mesh=screen2,matrix = np.eye(4))
+    scene.add_node(n_scr)
+    
+    return(scene)
+
+if __name__ == '__main__':
+    #tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
+    
+    tm = trimesh.creation.cylinder(5,10)
+    img = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond.PNG")
+    img1 = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond_1.PNG")
+    
+    
+    #Creation de «l'écran» 
+    edge_lengths = np.array([np.shape(img)[1],np.shape(img)[0],1.0],np.float64)
+    scr_transform = np.eye(4)
+    screen = trimesh.creation.box(extents=edge_lengths,transform=scr_transform,bounds=None)
+    screen = trimesh.creation.box(extents=[1920.0,1080.0,1.0],transform=np.eye(4),bounds=None)
+   
+    r=pyrender.OffscreenRenderer(viewport_width=1920,
+                               viewport_height=1080,
                                point_size=1.0)
     
     
+    scene = create_scene(img,screen)
     color, depth = r.render(scene)
-    
-    r.delete()
-    
-    #Afficher l'image
     color = cv2.cvtColor(color,cv2.COLOR_RGB2BGR)
     cv2.imshow('fenetre',color)
     cv2.waitKey()
-    return(0)
-
-
-
-if __name__ == '__main__':
     
-    #tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
-    tm = trimesh.creation.cylinder(5,10)
-    #print(tm)
-    img = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond.PNG")
-    
-    #print(img.type)
-    render(tm,img)
+    scene = update_screen(img1,scene,screen)
+    color, depth = r.render(scene)
+    color = cv2.cvtColor(color,cv2.COLOR_RGB2BGR)
+    cv2.imshow('fenetre',color)
+    cv2.waitKey()
+    r.delete()
