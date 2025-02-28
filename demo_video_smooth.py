@@ -2,6 +2,7 @@
 
 __author__ = 'cleardusk'
 
+import renderer #custom renderer #optimize on ne peut pas ouvrir d'autres fenetres sinon ca crash
 import argparse
 import imageio
 import numpy as np
@@ -22,15 +23,25 @@ import open3d as o3d
 import cv2
 import time
 import matplotlib.pyplot as plt
-
+import pyrender
+from PIL import Image
 
 from alignment import prepare_dataset,execute_global_registration,execute_fast_global_registration,register_via_correspondences,draw_registration_result,scale_pcd,aligne_boite,custom_draw_geometry,aligne_boite_origine
 from alignment import align_and_center_pcds
 import video_utils
 
+import trimesh.visual
+import pyrender # type: ignore
+import trimesh 
+import numpy as np
+import cv2
+import pyrealsense2 as rs # type: ignore
+from PIL import Image
+import copy
 
-def fonction(fonction):
-    return fonction
+
+
+
 def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
 
@@ -112,6 +123,12 @@ def main(args):
         frame_bgr = frame[..., ::-1]  # RGB->BGR
 
         if i == 0:
+            #create scene for renderer
+            screen = renderer.create_screen(frame_bgr)
+            r=pyrender.OffscreenRenderer(viewport_width=1920,
+                               viewport_height=1080,
+                               point_size=1.0)
+            scene = renderer.create_scene(frame_bgr,screen)
             # detect
             #boxes = crop(frame_bgr)
             boxes = face_boxes(frame_bgr)
@@ -212,7 +229,7 @@ def main(args):
                     scale_fact = np.eye(4)
                     for k in range(3):
                         scale_fact[k,k] = facteur
-                    print(centre_tgt)
+                    
                     
                     
                     #appliquer les transformation
@@ -240,11 +257,6 @@ def main(args):
                     
                 
                 else :
-                    
-                    #Original
-                    #Fast Global Registration
-                    
-                    
                     
                     target = o3d.geometry.PointCloud()
                     target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque.points.astype(np.float64)))
@@ -296,13 +308,15 @@ def main(args):
                 triangles = np.delete(triangles,0,1)
                 
                 tddfa.tri = triangles.astype(np.dtype(int))
-                img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+                
+                #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+                scene = renderer.update_screen(frame_bgr,scene,screen)
+                img_draw,depth = r.render(scene)
                 tddfa.tri = tri_copy
                 
                 
             else:
                 raise ValueError(f'Unknown opt {args.opt}')
-
             writer.append_data(img_draw[:, :, ::-1])  # BGR->RGB
 
             queue_ver.popleft()
@@ -321,16 +335,18 @@ def main(args):
             img_draw = cv_draw_landmark(queue_frame[n_pre], ver_ave, size=1)
         elif args.opt == '3d':
             #img_draw = render(queue_frame[n_pre], [ver_ave2[0]], ver_ave2[1], alpha=0.7)#c35
-            img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+            #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+            img_draw,depth = r.render(scene)
         else:
             raise ValueError(f'Unknown opt {args.opt}')
-
+        
         writer.append_data(img_draw[..., ::-1])  # BGR->RGB
 
         queue_ver.popleft()
         queue_frame.popleft()
     #fichier.close()
     writer.close()
+    r.delete()
     print(f'Dump to {video_wfp}')
     
 
@@ -338,7 +354,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme1sec.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=1, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')

@@ -95,8 +95,7 @@ def register_via_correspondences(source,target,target_points,source_points) :
     correspondence_set = o3d.utility.Vector2iVector(corr)
 
     # Appliquer ICP avec correspondances connues
-    result_correspondence = o3d.pipelines.registration.TransformationEstimationPointToPoint().compute_transformation(
-    source, target, correspondence_set)
+    result_correspondence = o3d.pipelines.registration.TransformationEstimationPointToPoint().compute_transformation(source, target, correspondence_set)
 
     return(result_correspondence)
 
@@ -139,7 +138,7 @@ def aligne_boite(source,target):
     deplacement = np.subtract(boite_target.get_center(),boite_source.get_center())
     source = copy.deepcopy(source).translate(deplacement)
     
-    custom_draw_geometry([source,source.get_minimal_oriented_bounding_box(),target,target.get_minimal_oriented_bounding_box()])
+    #custom_draw_geometry([source,source.get_minimal_oriented_bounding_box(),target,target.get_minimal_oriented_bounding_box()])
     
     
     boite_source = source.get_oriented_bounding_box()
@@ -330,8 +329,8 @@ def align_and_center_pcds(source, target):
         o3d.pipelines.registration.TransformationEstimationPointToPoint()
     )
     
-    o3d.visualization.draw_geometries([aligned_pcd.paint_uniform_color([0,0,1]),aligned_pcd.transform(icp_result.transformation).paint_uniform_color([1, 0, 0]),
-                                       target.paint_uniform_color([0,1,0])])  
+    #o3d.visualization.draw_geometries([aligned_pcd.paint_uniform_color([0,0,1]),aligned_pcd.transform(icp_result.transformation).paint_uniform_color([1, 0, 0]),
+                                       #target.paint_uniform_color([0,1,0])])  
     
     return R_align,centroid_tgt,centroid_src,icp_result.transformation
     
