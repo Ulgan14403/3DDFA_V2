@@ -55,7 +55,7 @@ def create_scene(img,screen):
     #Image sous le format PIL
     img = Image.fromarray(img)
     #Creation du mesh pour pyrender
-    tm = trimesh.creation.cylinder(5,10)
+    tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
     mesh = pyrender.Mesh.from_trimesh(tm)
     
     #Creating lights
@@ -85,12 +85,13 @@ def create_scene(img,screen):
     
     material = trimesh.visual.texture.SimpleMaterial(image=img)
     color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img, material=material)
-    screen=trimesh.Trimesh(vertices=screen.vertices, faces=screen.faces, visual=color_visuals, validate=True, process=False)
+    screen=trimesh.Trimesh(vertices=screen.vertices, faces=screen.faces,visual=color_visuals,validate=True, process=False)
     screen = pyrender.Mesh.from_trimesh(screen)
     
     
     #Creation des nodes
     pose_mesh = np.eye(4)
+    pose_mesh[:3,3]=[-500,-500,0]
     pose_camera = np.eye(4)
     z = max((616/1920)*img.width,(616/1080)*img.height) #ajuste la caméra à la taille de l'image
     pose_camera[:3,3]=[0,0,z] 
@@ -143,6 +144,9 @@ def update_screen(img,scene,screen):
     scene.add_node(n_scr)
     
     return(scene)
+
+def update_masque(scene,masque):
+    return(0)
 
 if __name__ == '__main__':
     #tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
