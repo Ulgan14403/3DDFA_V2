@@ -124,11 +124,10 @@ def main(args):
 
         if i == 0:
             #create scene for renderer
-            screen = renderer.create_screen(frame_bgr)
             r=pyrender.OffscreenRenderer(viewport_width=1280,
                                viewport_height=720,
                                point_size=1.0)
-            scene = renderer.create_scene(frame_bgr,screen)
+            scene = renderer.create_scene(frame_bgr)
             # detect
             #boxes = crop(frame_bgr)
             boxes = face_boxes(frame_bgr)
@@ -356,7 +355,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme1sec.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=1, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')

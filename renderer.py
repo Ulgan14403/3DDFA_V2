@@ -4,10 +4,10 @@ import pyrender
 import trimesh 
 import numpy as np
 import cv2
-import pyrealsense2 as rs
+import pyrealsense2 as rs 
 from PIL import Image
 import copy
-from video_utils import pyvistaToTrimesh,trimeshToPyvista
+from video_utils import pyvistaToTrimesh
 
 def param_intrinsics():
     '''
@@ -44,22 +44,29 @@ def create_renderer():
 def create_screen(img):
     '''
     Création de «l'écran»
+    Output
     '''
-    img = Image.fromarray(img)
+    img = Image.fromarray(img) #optimize ajuster en fonction de la taille du renderer
     edge_lengths = np.array([1280,720,1.0],np.float64)
     scr_transform = np.eye(4)
     screen = trimesh.creation.box(extents=edge_lengths,transform=scr_transform,bounds=None)
     
     return(screen)
     
-def create_scene(img,screen): 
+def create_scene(img): #optimize inclure create screen dans create scene
     '''
-    Créer la scène avec la bonne lumière, caméra et initialisation du fond
+    Créer la scène avec la bonne lumière, caméra et initialisation du fond 
+    
+    Input : image de fond (1ere frame de la vidéo), screen (à initialiser)
+    Output : scène initialisée
     '''
+    
+    #Creation de l'écran
+    screen = create_screen(img)
     #Image sous le format PIL
     img = Image.fromarray(img)
     #Creation du mesh pour pyrender
-    tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
+    tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl") #marker pour l'origine
     mesh = pyrender.Mesh.from_trimesh(tm)
     
     #Creating lights
@@ -71,7 +78,7 @@ def create_scene(img,screen):
     intr.height = img.height 
     intr.width  = img.width 
     
-    oc = pyrender.camera.OrthographicCamera(xmag=640,ymag=360,zfar=50000,name='main_camera') #height/2 width/2
+    oc = pyrender.camera.OrthographicCamera(xmag=640,ymag=360,zfar=50000,name='main_camera') #xmag = height/2 ymag = width/2
     
     
     #Creation de la scene
@@ -102,9 +109,8 @@ def create_scene(img,screen):
                        [0,-1,0],
                        [0,0,1]]
     
-    #z = max((616/1920)*img.width,(616/1080)*img.height) #ajuste la caméra à la taille de l'image
-    z = 616 #ajuste la caméra à la taille de l'image
-
+    z = 616 #ajuste la caméra à la taille de l'image #optimize ajuster en fonction de la taille de l'écran \ du display \ de la vidéo
+    
     pose_camera[:3,3]=[640,360,z] # orthographic camera
     pose_pl = np.eye(4)
     pose_pl[:3,3] = [640,360,-500]
@@ -132,14 +138,18 @@ def create_scene(img,screen):
     
     return(scene)
 
-def update_screen(img,scene,screen):
+def update_screen(img,scene,screen): #optimize on peut utiliser le screen deja present dans la scene pour un argument de moins
     '''
     Update l'image de fond
     (Met à jour la texture appliquée sur le mesh 'screen')
+    
+    Input : image à appliquer en fond, scène à modifier, mesh 'screen' de la scène
+    Output : scène modifiée
     '''
     #image sous la forme PIL
     img = Image.fromarray(img)
-    uv= [ # uv mapping
+    
+    uv= [ # uv mapping (pour cette vue)
          [0.0, 0.0],
          [0.0, 1.0],
          [0.0, 0.0],
@@ -161,8 +171,8 @@ def update_screen(img,scene,screen):
     screen2 = pyrender.Mesh.from_trimesh(screen2)
     pose_mesh = np.eye(4)
     pose_mesh[:3,:3]=[[1,0,0],
-                        [0,1,0],
-                        [0,0,1]]
+                      [0,1,0],
+                      [0,0,1]]
     pose_mesh[:3,3]=[640,360,0] #aligner les coins de video des prediction et du rendering
     n_scr = pyrender.Node(name='screen',mesh=screen2,matrix = pose_mesh)
     scene.add_node(n_scr)
@@ -173,23 +183,25 @@ def update_masque(scene,masque):
     '''
     Update la position du masque pour l'aligner sur le visage dans la vidéo
     a partir du masque (trimesh) crée à partir de la vidéo
+    
+    Input : scène à modifier , masque à intégrer dans la scène (sous la forme Pyvista)
+    Output : scène modifiée (avec le nouveau masque)
     '''
     
     for i in scene.get_nodes(name='masque'): 
         scene.remove_node(i)
     
-    masque = pyvistaToTrimesh(masque) #optimize le masque ne sera peut etre pas trimesh
-    centre = masque.centroid
-    # masque =masque.apply_transform( trimesh.transformations.scale_matrix(720/1280,centre))
+    masque = pyvistaToTrimesh(masque) #pyrender fonctionne avec trimesh
     masque = pyrender.Mesh.from_trimesh(masque)
+    
     pose_masque = np.eye(4)
     pose_masque[:3,3] = [0,0,0]
     pose_masque[:3,:3]=[[1,0,0],
                         [0,1,0],
                         [0,0,1]] 
+    
     n_msq = pyrender.Node(name = 'masque',mesh= masque,matrix=pose_masque)
     scene.add_node(n_msq)
-    # scene.set_pose(mesh_node,transfo)
     return(scene)
     
 
