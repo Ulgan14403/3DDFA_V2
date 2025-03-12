@@ -301,8 +301,9 @@ def main(args):
                     triangles = np.delete(triangles,0,1)
                     
                     tddfa.tri = triangles.astype(np.dtype(int))
-                    img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+                    #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                     #tddfa.tri = tri_copy
+                    
                     #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7) #ff0000 ajouter le nez directement ?
                 else: 
                     raise ValueError(f'Unknown opt {args.opt}')

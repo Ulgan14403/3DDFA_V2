@@ -41,25 +41,25 @@ def fusion_masque(masque):
     fusion = np.zeros_like(masque_face.points)
     
     for k in idx_droite :
-        fusion[k]= (7*masque_droite.points[k] + 4 * masque_face.points[k] ) /11
+        fusion[k]= (3*masque_gauche.points[k] + 7 * masque_face.points[k] ) /10
     
     for k in idx_gauche :
-        fusion[k]= (7*masque_gauche.points[k] + 4 * masque_face.points[k]  ) /11
+        fusion[k]= (3*masque_droite.points[k] + 7 * masque_face.points[k]  ) /10
     
     for k in idx_haut :
-        fusion[k]=  (masque_face.points[k] + masque_gauche.points[k] +  masque_droite.points[k] )/3
+        fusion[k]=  (masque_face.points[k] + 4*masque_gauche.points[k] +  4*masque_droite.points[k] )/9
     
     for k in idx_bas :
-        fusion[k]=   (masque_face.points[k] +  masque_gauche.points[k] +  masque_droite.points[k] )/3
+        fusion[k]=   (masque_face.points[k] +  4*masque_gauche.points[k] + 4* masque_droite.points[k] )/9
         
     for k in idx_face :
-        fusion[k]= (7*masque_face.points[k] + 2 * masque_gauche.points[k] + 2 * masque_droite.points[k])/11
+        fusion[k]= (2*masque_face.points[k] +6 * masque_gauche.points[k] + 6 * masque_droite.points[k])/14
     
     old_masque = copy.deepcopy(masque_face)
     masque_face.points = fusion
     #nouveau_masque = pv.PolyData(fusion)
     
-    #plotMeshes([old_masque,masque_face])
+    plotMeshes([old_masque])
     return(masque_face)
 
 

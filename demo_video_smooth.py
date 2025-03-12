@@ -45,7 +45,7 @@ import copy
 def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
 
-    nose_mesh = pv.read(r"E:\Antoine\Downloads\21515_Nose_V1.stl")
+    nose_mesh = pv.read(r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl")
     
     # définition des variables
     masque_bounds = 662.5723876953125, 963.724365234375, 153.64328002929688, 527.9197998046875, 0.0, 252.28634643554688
@@ -125,8 +125,8 @@ def main(args):
         if i == 0:
             #create scene for renderer
             screen = renderer.create_screen(frame_bgr)
-            r=pyrender.OffscreenRenderer(viewport_width=1920,
-                               viewport_height=1080,
+            r=pyrender.OffscreenRenderer(viewport_width=1280,
+                               viewport_height=720,
                                point_size=1.0)
             scene = renderer.create_scene(frame_bgr,screen)
             # detect
@@ -163,7 +163,9 @@ def main(args):
                 param_lst, roi_box_lst = tddfa(frame_bgr, boxes)
 
             ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
-
+            #P = simple_viz_pose(param_lst,ver)
+            #print(P)
+            
             queue_ver.append(ver.copy())
             queue_frame.append(frame_bgr.copy())
 
@@ -251,7 +253,6 @@ def main(args):
                     
                     #Ajouter le nouveau nez au masque
                     masque_modified = masque + nose_mesh
-
                     frame_presente = nombre_de_repetition
                     
                     
@@ -311,6 +312,7 @@ def main(args):
                 
                 #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                 scene = renderer.update_screen(frame_bgr,scene,screen)
+                scene = renderer.update_masque(scene,masque_modified)
                 img_draw,depth = r.render(scene)
                 tddfa.tri = tri_copy
                 
@@ -354,7 +356,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme1sec.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=1, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')

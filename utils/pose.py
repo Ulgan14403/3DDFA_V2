@@ -73,6 +73,7 @@ def calc_pose(param):
     pose = matrix2angle(R)
     pose = [p * 180 / np.pi for p in pose]
     pose = [p  for p in pose]
+    print(P)
 
     return P, pose , R, t3d
 
@@ -144,14 +145,14 @@ def viz_pose(img, param_lst, ver_lst, show_flag=False, wfp=None):
 
     return img
 
-def simple_viz_pose(img,param_lst,ver_lst):
+def simple_viz_pose(param_lst,ver_lst):
     
     for param, ver in zip(param_lst, ver_lst):
         P, pose,R,t3d = calc_pose(param)
-        pose = [p*np.pi/180 for p in pose]
-        s, R, t3d = P2sRt(P)
-        print(t3d)
-        return(pose,R,t3d)  
+        #pose = [p*np.pi/180 for p in pose]
+        #s, R, t3d = P2sRt(P)
+        #print(t3d)
+        return(P)  
     
     
     
