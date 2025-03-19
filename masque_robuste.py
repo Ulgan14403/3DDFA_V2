@@ -21,7 +21,7 @@ def color_indx(mesh,idx):
     mesh.point_data["colors"] = colors
     plotter = pv.Plotter()
     plotter.add_mesh(mesh, scalars="colors", rgb=True)  # rgb=True pour afficher les couleurs
-    plotter.show()
+    #plotter.show()
 
 def color_tot_idx(mesh):
     colors = np.ones((mesh.n_points,3))
@@ -33,7 +33,7 @@ def color_tot_idx(mesh):
     mesh.point_data["colors"] = colors
     plotter = pv.Plotter()
     plotter.add_mesh(mesh, scalars="colors", rgb=True)  # rgb=True pour afficher les couleurs
-    plotter.show()
+    #plotter.show()
     
 def fusion_masque(masque):
     
@@ -59,7 +59,7 @@ def fusion_masque(masque):
     masque_face.points = fusion
     #nouveau_masque = pv.PolyData(fusion)
     
-    plotMeshes([old_masque])
+    #plotMeshes([masque_face])
     return(masque_face)
 
 

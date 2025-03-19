@@ -8,6 +8,9 @@ import pyrealsense2 as rs
 from PIL import Image
 import copy
 from video_utils import pyvistaToTrimesh
+import pyvista
+
+#optimize adapter le renderer a la taille de l image
 
 def param_intrinsics():
     '''
@@ -19,6 +22,7 @@ def param_intrinsics():
     cfg = pipeline.start(config)
     profile=(cfg.get_stream(rs.stream.color,0))
     intr = profile.as_video_stream_profile().get_intrinsics()
+    pipeline.stop()
     return(intr)
 
 def Mat_intr(intr):
@@ -32,28 +36,30 @@ def Mat_intr(intr):
     camMat[1,2] = intr.ppy
     return(camMat)
 
-def create_renderer():
+def create_renderer(Resolution):
     '''
     Crée le renderer
+    Input : la résolution de la camera sous la forme (1280,720) «-- (example)
     '''
-    return(pyrender.OffscreenRenderer(viewport_width=1280,
-                               viewport_height=720,
+    return(pyrender.OffscreenRenderer(viewport_width=Resolution[0],
+                               viewport_height=Resolution[1],
                                point_size=1.0))
     
 
-def create_screen(img):
+def create_screen(img,resolution):
     '''
     Création de «l'écran»
-    Output
+    Input :image sous forme de tableau numpy
+    Output : ecran de fond
     '''
-    img = Image.fromarray(img) #optimize ajuster en fonction de la taille du renderer
-    edge_lengths = np.array([1280,720,1.0],np.float64)
+    img = Image.fromarray(img) 
+    edge_lengths = np.array([resolution[0],resolution[1],1.0],np.float64)
     scr_transform = np.eye(4)
     screen = trimesh.creation.box(extents=edge_lengths,transform=scr_transform,bounds=None)
     
     return(screen)
     
-def create_scene(img): #optimize inclure create screen dans create scene
+def create_scene(img,resolution): 
     '''
     Créer la scène avec la bonne lumière, caméra et initialisation du fond 
     
@@ -62,7 +68,7 @@ def create_scene(img): #optimize inclure create screen dans create scene
     '''
     
     #Creation de l'écran
-    screen = create_screen(img)
+    screen = create_screen(img,resolution)
     #Image sous le format PIL
     img = Image.fromarray(img)
     #Creation du mesh pour pyrender
@@ -74,11 +80,7 @@ def create_scene(img): #optimize inclure create screen dans create scene
     dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=20.0) #lux
     
     #Creating camera
-    intr = param_intrinsics()
-    intr.height = img.height 
-    intr.width  = img.width 
-    
-    oc = pyrender.camera.OrthographicCamera(xmag=640,ymag=360,zfar=50000,name='main_camera') #xmag = height/2 ymag = width/2
+    oc = pyrender.camera.OrthographicCamera(xmag=resolution[0]/2,ymag=resolution[1]/2,zfar=50000,name='main_camera') #xmag = height/2 ymag = width/2
     
     
     #Creation de la scene
@@ -109,12 +111,11 @@ def create_scene(img): #optimize inclure create screen dans create scene
                        [0,-1,0],
                        [0,0,1]]
     
-    z = 616 #ajuste la caméra à la taille de l'image #optimize ajuster en fonction de la taille de l'écran \ du display \ de la vidéo
+    z = 616 #ajuste la caméra à la taille de l'image 
     
-    pose_camera[:3,3]=[640,360,z] # orthographic camera
+    pose_camera[:3,3]=[resolution[0]/2,resolution[1]/2,z] # orthographic camera
     pose_pl = np.eye(4)
-    pose_pl[:3,3] = [640,360,-500]
-    print(pose_pl)
+    pose_pl[:3,3] = [resolution[0]/2,resolution[1]/2,-500]
     pose_screen = np.eye(4)
     
     
@@ -126,7 +127,7 @@ def create_scene(img): #optimize inclure create screen dans create scene
     
     #Ajout des nodes
     #scene.add_node(npl)
-    scene.add_node(nm)
+    #scene.add_node(nm)
     scene.add_node(nl)
     scene.add_node(nc)
     scene.add_node(n_scr)
@@ -138,7 +139,7 @@ def create_scene(img): #optimize inclure create screen dans create scene
     
     return(scene)
 
-def update_screen(img,scene,screen): #optimize on peut utiliser le screen deja present dans la scene pour un argument de moins
+def update_screen(img,scene,resolution): 
     '''
     Update l'image de fond
     (Met à jour la texture appliquée sur le mesh 'screen')
@@ -162,18 +163,21 @@ def update_screen(img,scene,screen): #optimize on peut utiliser le screen deja p
     #Enlever l'ecran precedent
     node_scr = scene.get_nodes(name='screen')
     for i in node_scr:
+        screen = i.mesh.primitives[0]
         scene.remove_node(i)
+    
+    
     
     #Ajouter un nouvel ecran avec la nouvelle texture
     material = trimesh.visual.texture.SimpleMaterial(image=img)
     color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img, material=material)
-    screen2=trimesh.Trimesh(vertices=screen.vertices, faces=screen.faces, visual=color_visuals, validate=True, process=False)
+    screen2=trimesh.Trimesh(vertices=screen.positions, faces=screen.indices, visual=color_visuals, validate=True, process=False)
     screen2 = pyrender.Mesh.from_trimesh(screen2)
     pose_mesh = np.eye(4)
     pose_mesh[:3,:3]=[[1,0,0],
                       [0,1,0],
                       [0,0,1]]
-    pose_mesh[:3,3]=[640,360,0] #aligner les coins de video des prediction et du rendering
+    pose_mesh[:3,3]=[resolution[0]/2,resolution[1]/2,0] #aligner les coins de video des prediction et du rendering
     n_scr = pyrender.Node(name='screen',mesh=screen2,matrix = pose_mesh)
     scene.add_node(n_scr)
     
@@ -191,9 +195,12 @@ def update_masque(scene,masque):
     for i in scene.get_nodes(name='masque'): 
         scene.remove_node(i)
     
-    masque = pyvistaToTrimesh(masque) #pyrender fonctionne avec trimesh
-    masque = pyrender.Mesh.from_trimesh(masque)
+    #Test si le masque est un objet pyvista et le transforme en trimesh
+    if isinstance(masque,pyvista.core.pointset.PolyData):
+        masque = pyvistaToTrimesh(masque) #pyrender fonctionne avec trimesh
+    masque = pyrender.Mesh.from_trimesh(masque,smooth =False)
     
+    #Nouveau masque
     pose_masque = np.eye(4)
     pose_masque[:3,3] = [0,0,0]
     pose_masque[:3,:3]=[[1,0,0],
@@ -216,19 +223,7 @@ if __name__ == '__main__':
     img1 = np.array(img1)
     
     screen = create_screen(img)
-    r=create_renderer()
+    scene = create_scene(img)
+
     
-    
-    scene = create_scene(img,screen)
-    color, depth = r.render(scene)
-    color = cv2.cvtColor(color,cv2.COLOR_RGB2BGR)
-    cv2.imshow('fenetre',color)
-    cv2.waitKey()
-    scene = update_masque(scene,tm)
-    color, depth = r.render(scene)
-    color = cv2.cvtColor(color,cv2.COLOR_RGB2BGR)
-    cv2.imshow('fenetre',color)
-    cv2.waitKey()
-    
-    
-    r.delete()
+   

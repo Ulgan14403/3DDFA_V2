@@ -140,9 +140,7 @@ class TDDFA_ONNX(object):
         ver_lst = []
         for param, roi_box in zip(param_lst, roi_box_lst):
             R, offset, alpha_shp, alpha_exp = _parse_param(param)
-            print(offset)
-            offset=[0,0,0]
-            print(offset)
+           
             '''alpha_shp = [[-1.66670250e+05],
                          [-6.58709062e+04],
                          [ 2.73075312e+05],

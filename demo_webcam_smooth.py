@@ -22,6 +22,7 @@ import pyvista as pv
 import open3d as o3d
 import cv2
 import time
+
 import matplotlib.pyplot as plt
 
 from masque_robuste import recup_masque,registration_pls_masques,fusion_masque
@@ -30,6 +31,9 @@ from alignment import register_via_correspondences,scale_pcd
 from alignment import align_and_center_pcds
 import video_utils
 import pyrealsense2 as rs
+import copy
+
+import renderer
 
 def main(args):
     nose_mesh = pv.read(args.nez)
@@ -81,7 +85,8 @@ def main(args):
     device_product_line = str(device.get_info(rs.camera_info.product_line))
 
     # Get the color
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+    resolution = (1280,720) #/!\ Ne pas oublier de changer les fps en fonction de la resolution, en accord avec les capacitées de la caméra /!\
+    config.enable_stream(rs.stream.color, resolution[0],resolution[1], rs.format.bgr8, 15)
 
     # Start streaming
     pipeline.start(config)
@@ -109,20 +114,24 @@ def main(args):
     pre_ver = None
     i=0
     First=True
-    position =0
+    position =6 #todo finir la fonction pour les masques robustes
     liste_position = ['face','droite','gauche','haut','bas']
     liste_indication = ['FACE','-->','<--',r' /\ ',r' \/ '] 
     liste_masque_position = []
     
     
     try:
-        while True:
+        while True:           
             frames = pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
             # Convert images to numpy arrays
             frame_bgr = np.asanyarray(color_frame.get_data()) #sous forme numpy
-
+            
             if i == 0:
+                #Création du renderer pour afficher le masque 
+                scene = renderer.create_scene(frame_bgr.copy(),resolution)
+                r = renderer.create_renderer(resolution)
+                
                 
                 # the first frame, detect face, here we only use the first face, you can change depending on your need
                 boxes = crop(frame_bgr)
@@ -161,6 +170,7 @@ def main(args):
                     boxes = [boxes[0]]
                     param_lst, roi_box_lst = tddfa(frame_bgr, boxes)
 
+                
                 ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
 
                 queue_ver.append(ver.copy())
@@ -178,11 +188,14 @@ def main(args):
                     img_draw = cv_draw_landmark(queue_frame[n_pre], ver_ave, size=1)
                 elif args.opt == '3d':
                     
+                    
+                    
                     #recuperation du masque
                     tri_copy = tddfa.tri
                     masque = pv.PolyData.from_regular_faces(ver_ave.T,tddfa.tri)
                     
                     if position <= 4:
+                        
                         
                         indication = liste_indication[position]
                         
@@ -205,12 +218,13 @@ def main(args):
                             break
                         continue
                     if position == 5 :
-                        #todo faire une fonction pour faire un masque moyenne des autres 
+                        
                         liste_masque = registration_pls_masques(liste_masque_position)
                         masque = fusion_masque(liste_masque)
                         position+=1
                         
                     if frame_presente == 1 :
+                        
                         # Recupération du nez a partir du masque, sous la forme de nuage de point
                         nez_point_cloud = np.ndarray((1,3))
                         for k in idx_nez :
@@ -257,14 +271,25 @@ def main(args):
                         triangles = np.delete(triangles,0,1)
                         tddfa.tri = triangles.astype(np.dtype(int))
                         
-                        masque.texture = pv.numpy_to_texture(np.zeros((10,10,4)))
+                        #masque.texture = pv.numpy_to_texture(np.zeros((10,10,4)))
                         #Ajouter le nouveau nez au masque
-                        video_utils.plotMeshes([masque])
                         masque_modified = masque + nose_mesh
                         
+                        #Creation du masque d'affichage, on affiche juste le nez #optimize on peut pas juste utiliser le nez ?
+                        masque = video_utils.pyvistaToTrimesh(masque)
+                        nose_mesh = video_utils.pyvistaToTrimesh(nose_mesh)
+                        
+                        
+                        #Ajoute  une texture invisible au masque
+                        masque.visual.vertex_colors[:]=[250,0,0,0]
+                        masque.visual.face_colors[:]=[250,0,0,0]
+                        masque_colored = masque+nose_mesh
+                        
                         frame_presente = nombre_de_repetition
+                        
                     
                     else :
+                        
                         
                         target = o3d.geometry.PointCloud()
                         target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque.points.astype(np.float64)))
@@ -273,6 +298,7 @@ def main(args):
                         source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque_modified.points.astype(np.float64)))
                         
                         if First == True :
+                            
                             ''' 
                             création des listes de points de controles qui vont servir lors du recalage, l'opération est couteuse, 
                             on ne l'effectue qu'une seule fois
@@ -287,13 +313,16 @@ def main(args):
                             source_points = [source_points[i*10] for i in range (len(source_points)//10)]
                             First = False
                 
+                        
                         #Registration
                         result_ransac = register_via_correspondences(source,target,target_points,source_points)
                         
                         #Appliquer la transformation sur le modèle de visage
                         masque_modified = masque_modified.transform(result_ransac)
+                        masque_colored  = masque_colored.apply_transform(result_ransac)
                     
                     #Render le masque
+                    
                     
                     ver_ave = (masque_modified.points).T
                     triangles = masque_modified.faces
@@ -304,20 +333,28 @@ def main(args):
                     #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                     #tddfa.tri = tri_copy
                     
-                    #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7) #ff0000 ajouter le nez directement ?
+                    
+                    img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7) #ff0000 ajouter le nez directement ?
                 else: 
                     raise ValueError(f'Unknown opt {args.opt}')
-            
+
+                
+                
+                #Render l'image
+                scene = renderer.update_screen(frame_bgr,scene,resolution)
+                scene = renderer.update_masque(scene,masque_colored)
+                img_draw,depth = r.render(scene)
+                
                 cv2.imshow('image', img_draw)
                 k = cv2.waitKey(20)
                 if (k & 0xff == ord('q')):
                     break
-
+                
                 queue_ver.popleft()
                 queue_frame.popleft()
-                writer.append_data(img_draw[..., ::-1])
+                #writer.append_data(img_draw[..., ::-1])
+                
     finally:
-
         # Stop streaming
         pipeline.stop()
         writer.close()
