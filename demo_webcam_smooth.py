@@ -85,8 +85,8 @@ def main(args):
     device_product_line = str(device.get_info(rs.camera_info.product_line))
 
     # Get the color
-    resolution = (1280,720) #/!\ Ne pas oublier de changer les fps en fonction de la resolution, en accord avec les capacitées de la caméra /!\
-    config.enable_stream(rs.stream.color, resolution[0],resolution[1], rs.format.bgr8, 15)
+    resolution = (640,480) #/!\ Ne pas oublier de changer les fps en fonction de la resolution, en accord avec les capacitées de la caméra /!\
+    config.enable_stream(rs.stream.color, resolution[0],resolution[1], rs.format.bgr8, 30)
 
     # Start streaming
     pipeline.start(config)
@@ -274,17 +274,7 @@ def main(args):
                         #masque.texture = pv.numpy_to_texture(np.zeros((10,10,4)))
                         #Ajouter le nouveau nez au masque
                         masque_modified = masque + nose_mesh
-                        
-                        #Creation du masque d'affichage, on affiche juste le nez #optimize on peut pas juste utiliser le nez ?
-                        masque = video_utils.pyvistaToTrimesh(masque)
-                        nose_mesh = video_utils.pyvistaToTrimesh(nose_mesh)
-                        
-                        
-                        #Ajoute  une texture invisible au masque
-                        masque.visual.vertex_colors[:]=[250,0,0,0]
-                        masque.visual.face_colors[:]=[250,0,0,0]
-                        masque_colored = masque+nose_mesh
-                        
+                        nose_affichage = copy.deepcopy(nose_mesh)
                         frame_presente = nombre_de_repetition
                         
                     
@@ -319,7 +309,7 @@ def main(args):
                         
                         #Appliquer la transformation sur le modèle de visage
                         masque_modified = masque_modified.transform(result_ransac)
-                        masque_colored  = masque_colored.apply_transform(result_ransac)
+                        nose_affichage  = nose_affichage.transform(result_ransac)
                     
                     #Render le masque
                     
@@ -342,7 +332,7 @@ def main(args):
                 
                 #Render l'image
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
-                scene = renderer.update_masque(scene,masque_colored)
+                scene = renderer.update_masque(scene,nose_affichage)
                 img_draw,depth = r.render(scene)
                 
                 cv2.imshow('image', img_draw)
@@ -352,13 +342,14 @@ def main(args):
                 
                 queue_ver.popleft()
                 queue_frame.popleft()
-                #writer.append_data(img_draw[..., ::-1])
+                writer.append_data(img_draw[..., ::-1])
                 
     finally:
         # Stop streaming
         pipeline.stop()
         writer.close()
-
+        print(f'Dump to {video_wfp}')
+        
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of webcam of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')

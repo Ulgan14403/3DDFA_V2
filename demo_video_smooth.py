@@ -127,7 +127,6 @@ def main(args):
             
             
             resolution = (np.shape(frame_bgr)[1],np.shape(frame_bgr)[0])
-            print(resolution)
             r=renderer.create_renderer(resolution)
             scene = renderer.create_scene(frame_bgr,resolution)
             
@@ -254,17 +253,7 @@ def main(args):
                     tddfa.tri = triangles.astype(np.dtype(int))
                     
                     masque_modified = masque + nose_mesh 
-                    
-                    masque = video_utils.pyvistaToTrimesh(masque)
-                    nose_mesh = video_utils.pyvistaToTrimesh(nose_mesh)
-                    
-                    
-                    #Ajoute  une texture invisible au masque
-                    masque.visual.vertex_colors[:]=[250,0,0,0]
-                    masque.visual.face_colors[:]=[250,0,0,0]
-                    masque_colored = masque+nose_mesh
-                    
-                    
+                    nose_affichage = copy.deepcopy(nose_mesh)
                     
                     #Ajouter le nouveau nez au masque
                     frame_presente = nombre_de_repetition
@@ -303,14 +292,14 @@ def main(args):
                         
                         #Appliquer la transformation sur le modèle de visage
                         masque_modified = masque_modified.transform(result_ransac)
-                        masque_colored  = masque_colored.apply_transform(result_ransac)
+                        nose_affichage = nose_affichage.transform(result_ransac)
                     except (RuntimeError):
                         print('safeguard')
                         
                         source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,1,voxel_size)
                         result_ransac = execute_fast_global_registration(source_down, target_down,source_fpfh, target_fpfh,1)
                         #Appliquer la transformation sur le modèle de visage
-                        masque_modified = masque_modified.transform(result_ransac.transformation)
+                        nose_affichage = nose_affichage.transform(result_ransac.transformation)
                             
                     
              
@@ -326,7 +315,7 @@ def main(args):
                 
                 #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
-                scene = renderer.update_masque(scene,masque_colored)
+                scene = renderer.update_masque(scene,nose_affichage)
                 img_draw,depth = r.render(scene)
                 tddfa.tri = tri_copy
                 
@@ -370,7 +359,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme1sec.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=1, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')

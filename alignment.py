@@ -95,7 +95,7 @@ def register_via_correspondences(source,target,target_points,source_points) :
     correspondence_set = o3d.utility.Vector2iVector(corr)
 
     # Appliquer ICP avec correspondances connues
-    result_correspondence = o3d.pipelines.registration.TransformationEstimationPointToPoint().compute_transformation(source, target, correspondence_set)
+    result_correspondence = o3d.pipelines.registration.TransformationEstimationPointToPoint(with_scaling=True).compute_transformation(source, target, correspondence_set)
     return(result_correspondence)
 
 def scale_pcd(source,target):
