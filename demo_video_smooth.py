@@ -46,22 +46,14 @@ def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
 
     nose_mesh = pv.read(r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl")
-    
-    # définition des variables
-    masque_bounds = 662.5723876953125, 963.724365234375, 153.64328002929688, 527.9197998046875, 0.0, 252.28634643554688
-    masque_centre = (masque_bounds[1]-masque_bounds[0])/2,(masque_bounds[3]-masque_bounds[2])/2,(masque_bounds[5]-masque_bounds[4])/2
-
-    
+  
     idx_nez = []
     with open('points_communs.txt','r') as f:
         lines = f.readlines() 
         for line in lines :
             idx_nez.append(int(line))
         f.close()
-    
-    
-    
-    
+   
     nose_mesh_ori,angle = video_utils.align_nose_y_axis(nose_mesh)
     nose_mesh=nose_mesh_ori
 
@@ -155,7 +147,7 @@ def main(args):
             param_lst, roi_box_lst = tddfa(frame_bgr, [pre_ver], crop_policy='landmark')
 
             roi_box = roi_box_lst[0]
-            if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 5000000: #### ligne a modifier pour detecter a chaque frame ou effectuer un suivi #### 500000 pour detection  continue, 2020 pour detection unique
+            if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 20200: #### ligne a modifier pour detecter a chaque frame ou effectuer un suivi #### 500000 pour detection  continue, 2020 pour detection unique
                 boxes,thresh = crop(frame_bgr,True)
                 #print(thresh)
                 if thresh[0] <0.7:
@@ -366,7 +358,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--opt', type=str, default='3d', choices=['2d_sparse', '2d_dense', '3d'])
     parser.add_argument('-s', '--start', default=-1, type=int, help='the started frames')
     parser.add_argument('-e', '--end', default=-1, type=int, help='the end frame')
-    parser.add_argument('--onnx', action='store_true', default=False)
+    parser.add_argument('--onnx', action='store_true', default=True)
 
     args = parser.parse_args()
     main(args)

@@ -53,11 +53,11 @@ def prepare_dataset(source,target,init,voxel_size):
 
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
-    distance_threshold = voxel_size * 1 #todo ajuster les nouveaux paramètres à la nouvelle taille
+    distance_threshold = voxel_size * 0.5 #todo ajuster les nouveaux paramètres à la nouvelle taille
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching( 
         source_down, target_down, source_fpfh, target_fpfh, True,
         distance_threshold,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(),
         3, [
             o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
                 distance_threshold)
@@ -67,11 +67,11 @@ def execute_global_registration(source_down, target_down, source_fpfh,
 def refine_registration(source, target, voxel_size,result_ransac):
     estimation = o3d.pipelines.registration.TransformationEstimationPointToPlane()
     init_source_to_target = result_ransac.transformation
-    criteria = o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness=0.000001,relative_rmse=0.000001,max_iteration=100)
+    criteria = o3d.pipelines.registration.ICPConvergenceCriteria(relative_fitness=0.000001,relative_rmse=0.000001,max_iteration=1000)
     voxel_size = voxel_size *0.5
-    max_correspondence_distance = 0.1
+    max_correspondence_distance = 0.7
     reg_point_to_plane = o3d.pipelines.registration.registration_icp(source, target, max_correspondence_distance,init_source_to_target, estimation, criteria)
-    #draw_registration_result(source,target,reg_point_to_plane.transformation)
+    draw_registration_result(source,target,reg_point_to_plane.transformation)
     return(reg_point_to_plane)
 
 # Fast global registration

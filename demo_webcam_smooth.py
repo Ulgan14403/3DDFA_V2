@@ -48,7 +48,7 @@ def main(args):
     nose_mesh=nose_mesh_ori
     
    
-    video_wfp = r'E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\examples\results\videos\archives\video_live.mp4'
+    video_wfp = r'E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\examples\results\videos\archives\video_live_smooth.mp4'
     writer = imageio.get_writer(video_wfp)
     
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
@@ -163,7 +163,7 @@ def main(args):
                 
                 roi_box = roi_box_lst[0]
                 # todo: add confidence threshold to judge the tracking is failed
-                if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 5000000:
+                if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 2020:
                     boxes,thresh = crop(frame_bgr,True)
                     if thresh[0] <0.7:
                         continue
@@ -271,7 +271,6 @@ def main(args):
                         triangles = np.delete(triangles,0,1)
                         tddfa.tri = triangles.astype(np.dtype(int))
                         
-                        #masque.texture = pv.numpy_to_texture(np.zeros((10,10,4)))
                         #Ajouter le nouveau nez au masque
                         masque_modified = masque + nose_mesh
                         nose_affichage = copy.deepcopy(nose_mesh)
@@ -311,20 +310,20 @@ def main(args):
                         masque_modified = masque_modified.transform(result_ransac)
                         nose_affichage  = nose_affichage.transform(result_ransac)
                     
-                    #Render le masque
+                    # #Render le masque
                     
                     
-                    ver_ave = (masque_modified.points).T
-                    triangles = masque_modified.faces
-                    triangles = np.reshape(triangles,(int(len(triangles)/4),4))
-                    triangles = np.delete(triangles,0,1)
+                    # ver_ave = (masque_modified.points).T
+                    # triangles = masque_modified.faces
+                    # triangles = np.reshape(triangles,(int(len(triangles)/4),4))
+                    # triangles = np.delete(triangles,0,1)
                     
-                    tddfa.tri = triangles.astype(np.dtype(int))
-                    #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
-                    #tddfa.tri = tri_copy
+                    # tddfa.tri = triangles.astype(np.dtype(int))
+                    # img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+                    # tddfa.tri = tri_copy
                     
                     
-                    img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7) #ff0000 ajouter le nez directement ?
+                    #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7) #ff0000 ajouter le nez directement ?
                 else: 
                     raise ValueError(f'Unknown opt {args.opt}')
 
@@ -336,7 +335,7 @@ def main(args):
                 img_draw,depth = r.render(scene)
                 
                 cv2.imshow('image', img_draw)
-                k = cv2.waitKey(20)
+                k = cv2.waitKey(10)
                 if (k & 0xff == ord('q')):
                     break
                 
@@ -355,8 +354,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-o', '--opt', type=str, default='3d', choices=['2d_sparse', '2d_dense', '3d'])
-    parser.add_argument('-n_pre', default=1, type=int, help='the pre frames of smoothing')
-    parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')
+    parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
+    parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')
     parser.add_argument('--onnx', action='store_true', default=True)
     parser.add_argument('--nez',type=str,default =r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl" )
 
