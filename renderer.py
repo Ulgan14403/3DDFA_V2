@@ -7,7 +7,7 @@ import cv2
 import pyrealsense2 as rs 
 from PIL import Image
 import copy
-from video_utils import pyvistaToTrimesh
+from video_utils import pyvistaToTrimesh,trimeshToPyvista
 import pyvista
 
 #optimize adapter le renderer a la taille de l image
@@ -77,14 +77,14 @@ def create_scene(img,resolution):
     
     #Creating lights
     pl = pyrender.PointLight(color=[1.0, 1.0, 1.0]) #candela
-    dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=20.0) #lux
+    dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=0.0) #lux
     
     #Creating camera
     oc = pyrender.camera.OrthographicCamera(xmag=resolution[0]/2,ymag=resolution[1]/2,zfar=50000,name='main_camera') #xmag = height/2 ymag = width/2
     
     
     #Creation de la scene
-    scene = pyrender.Scene(ambient_light=[1., 1., 1.],bg_color=[1.0, 0.0, 0.0])
+    scene = pyrender.Scene(ambient_light=[0.2, 0.2, 0.2],bg_color=[1.0, 0.0, 0.0])
     
     #Creation de la texture du screen
     uv= [ # uv mapping
@@ -214,16 +214,12 @@ def update_masque(scene,masque):
 
 
 if __name__ == '__main__':
-    tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
+    tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj")
     
     
-    img = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond.PNG")
-    img = np.array(img)
-    img1 = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond_1.PNG")
-    img1 = np.array(img1)
     
-    screen = create_screen(img)
-    scene = create_scene(img)
-
     
-   
+    mesh = pyrender.Mesh.from_trimesh(tm)
+    scene = pyrender.Scene()
+    scene.add(mesh)
+    pyrender.Viewer(scene, use_raymond_lighting=True)

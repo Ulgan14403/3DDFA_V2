@@ -17,7 +17,7 @@ from TDDFA import TDDFA
 from utils.render import render
 #from utils.render_ctypes import render
 from utils.functions import cv_draw_landmark, get_suffix
-import trimesh
+
 import pyvista as pv
 import open3d as o3d
 import cv2
@@ -30,23 +30,24 @@ from alignment import prepare_dataset,execute_global_registration,execute_fast_g
 from alignment import align_and_center_pcds
 import video_utils
 
-import trimesh.visual
-import pyrender # type: ignore
-import trimesh 
 import numpy as np
-import cv2
-import pyrealsense2 as rs # type: ignore
+
+
 from PIL import Image
 import copy
 
-
+import os
+#os.environ["PYOPENGL_PLATFORM"] = "pyglet"
 
 
 def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
-
-    nose_mesh = pv.read(r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl")
-  
+    filename = r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj"
+    obj_reader = pv.get_reader(filename)
+    nose_mesh = obj_reader.read()
+    
+    
+    
     idx_nez = []
     with open('points_communs.txt','r') as f:
         lines = f.readlines() 
@@ -117,7 +118,7 @@ def main(args):
         if i == 0:
             #create scene for renderer
             
-            
+            print('initialisation')
             resolution = (np.shape(frame_bgr)[1],np.shape(frame_bgr)[0])
             r=renderer.create_renderer(resolution)
             scene = renderer.create_scene(frame_bgr,resolution)
@@ -196,10 +197,10 @@ def main(args):
                     for k in range(nombre_de_repetition):
                         #Global Registration
                         
-                        '''
-                        Aligne le nez du patient sur le masque de la prédiction et remplace le nez du masque i.e. moins précis qu'effectuer une 'vraie' 
-                        global registration avec la totalité du masque
-                        '''
+                        
+                        #Aligne le nez du patient sur le masque de la prédiction et remplace le nez du masque i.e. moins précis qu'effectuer une 'vraie' 
+                        #global registration avec la totalité du masque
+                        
                         target = o3d.geometry.PointCloud()
                         target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nez_point_cloud.astype(np.float64)))
                         
@@ -214,7 +215,7 @@ def main(args):
                     
                     #créer les matrices de transformation
                     centre_src = np.eye(4)
-                    centre_src[:3,3] = -centroid_src.T
+                    centre_src[:3,3] = -np.asarray(nose_mesh.center).T
                     centre_tgt = np.eye(4)
                     centre_tgt[:3,3] = centroid_tgt.T
                     centre_tgt_inv = np.eye(4)
@@ -223,13 +224,14 @@ def main(args):
                     rota[:3,:3] = R_align
                     scale_fact = np.eye(4)
                     for k in range(3):
-                        scale_fact[k,k] = facteur
+                        scale_fact[k,k] = facteur*1.1
+                    
                     
                     
                     
                     #appliquer les transformation
                     nose_mesh = nose_mesh.transform(centre_src)
-                    nose_mesh = nose_mesh.transform(scale_fact)
+                    nose_mesh = nose_mesh.transform(scale_fact  )
                     nose_mesh = nose_mesh.transform(rota)
                     nose_mesh = nose_mesh.transform(centre_tgt)
                     nose_mesh = nose_mesh.transform(icp_result)
@@ -249,21 +251,18 @@ def main(args):
                     
                     #Ajouter le nouveau nez au masque
                     frame_presente = nombre_de_repetition
-                    
-                    
                 
                 else :
-                    
                     target = o3d.geometry.PointCloud()
                     target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque.points.astype(np.float64)))
                     
                     source = o3d.geometry.PointCloud()
                     source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque_modified.points.astype(np.float64)))
                     if frame_presente == nombre_de_repetition:
-                        ''' 
-                        création des listes de points de controles qui vont servir lors du recalage, l'opération est couteuse, 
-                        on ne l'effectue qu'une seule fois
-                        '''
+                        
+                        #création des listes de points de controles qui vont servir lors du recalage, l'opération est couteuse, 
+                        #on ne l'effectue qu'une seule fois
+                        
                         diff = len(source.points) - len(target.points) + len(idx_nez)
     
                         target_points = [i for i in range(len(target.points)) if i not in idx_nez ]
@@ -294,21 +293,40 @@ def main(args):
                         nose_affichage = nose_affichage.transform(result_ransac.transformation)
                             
                     
-             
-   
+                    
+                    source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
+                    result_ransac =register_via_correspondences(source,target,target_points,source_points) 
+                    
+                    #Appliquer la transformation sur le modèle de visage
+                    masque_modified = masque_modified.transform(result_ransac)
+                    nose_affichage = nose_affichage.transform(result_ransac)
+                
+                
                 #Render le masque
                 
-                ver_ave = (masque_modified.points).T
-                triangles = masque_modified.faces
-                triangles = np.reshape(triangles,(int(len(triangles)/4),4))
-                triangles = np.delete(triangles,0,1)
+                # ver_ave = (masque_modified.points).T
+                # triangles = masque_modified.faces
+                # triangles = np.reshape(triangles,(int(len(triangles)/4),4))
+                # triangles = np.delete(triangles,0,1)
                 
-                tddfa.tri = triangles.astype(np.dtype(int))
+                # tddfa.tri = triangles.astype(np.dtype(int))
+                
+                # ver_ave = (nose_affichage.points).T
+                # triangles = nose_affichage.faces
+                # triangles = np.reshape(triangles,(int(len(triangles)/4),4))
+                # triangles = np.delete(triangles,0,1)
+                # tddfa.tri = triangles.astype(np.dtype(int))
+                # ver_ave = ver_ave.astype(np.dtype('float32')) #/!\ different du float de numpy qui est float64
+                
+                
+                
+                nose_trimesh = video_utils.pyvistaToTrimesh(nose_affichage)
+
                 
                 #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
-                scene = renderer.update_masque(scene,nose_affichage)
-                img_draw,depth = r.render(scene)
+                scene = renderer.update_masque(scene,nose_trimesh)
+                img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
                 
                 
@@ -332,8 +350,8 @@ def main(args):
             img_draw = cv_draw_landmark(queue_frame[n_pre], ver_ave, size=1)
         elif args.opt == '3d':
             #img_draw = render(queue_frame[n_pre], [ver_ave2[0]], ver_ave2[1], alpha=0.7)#c35
-            #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
-            img_draw,depth = r.render(scene)
+            img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+            #img_draw,depth = r.render(scene) #todo tester v3do pour le rendering
         else:
             raise ValueError(f'Unknown opt {args.opt}')
         

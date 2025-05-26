@@ -329,7 +329,7 @@ def align_and_center_pcds(source, target):
     )
     
     #o3d.visualization.draw_geometries([aligned_pcd.paint_uniform_color([0,0,1]),aligned_pcd.transform(icp_result.transformation).paint_uniform_color([1, 0, 0]),
-                                       #target.paint_uniform_color([0,1,0])])  
+    #                                   target.paint_uniform_color([0,1,0])])  
     
     return R_align,centroid_tgt,centroid_src,icp_result.transformation
     
@@ -337,12 +337,12 @@ def align_and_center_pcds(source, target):
     
 if __name__ == '__main__':
     source =  o3d.io.read_point_cloud(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\patient014_nez.ply")
-    target =  o3d.io.read_point_cloud(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\nez_masque.ply")
+    target =  o3d.io.read_point_cloud(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\examples\results\0_3_test_pcaTex.ply")
     source,facteur = scale_pcd(source,target)
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,True,1)
     #aligne_boite(source,target)
     source_aligned = align_and_center_pcds(source, target)
-
+    #custom_draw_geometry([source_aligned,target])
     
     
     
