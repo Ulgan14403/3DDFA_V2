@@ -36,7 +36,7 @@ import copy
 import renderer
 
 def main(args):
-    nose_mesh = pv.read(args.nez)
+    nose_mesh = trimesh.load(args.nez)
     idx_nez = []
     with open('points_communs.txt','r') as f:
         lines = f.readlines() 
@@ -235,16 +235,17 @@ def main(args):
                         target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nez_point_cloud.astype(np.float64)))
                         
                         source = o3d.geometry.PointCloud()
-                        source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.points.astype(np.float64)))
+                        source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.vertices.astype(np.float64)))
                         
                         source,facteur = scale_pcd(source,target)
                     
                         #recuperer les transformations
                         R_align,centroid_tgt,centroid_src,icp_result = align_and_center_pcds(source,target)
-                    
+
+                        nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
                         #créer les matrices de transformation
                         centre_src = np.eye(4)
-                        centre_src[:3,3] = -centroid_src.T
+                        centre_src[:3,3] = -np.asarray(nose_mesh_pv.center).T
                         centre_tgt = np.eye(4)
                         centre_tgt[:3,3] = centroid_tgt.T
                         centre_tgt_inv = np.eye(4)
@@ -253,14 +254,17 @@ def main(args):
                         rota[:3,:3] = R_align
                         scale_fact = np.eye(4)
                         for k in range(3):
-                            scale_fact[k,k] = facteur
-                    
+                            scale_fact[k,k] = facteur*1.1
+                        
+                        
+                        
+                        
                         #appliquer les transformation
-                        nose_mesh = nose_mesh.transform(centre_src)
-                        nose_mesh = nose_mesh.transform(scale_fact)
-                        nose_mesh = nose_mesh.transform(rota)
-                        nose_mesh = nose_mesh.transform(centre_tgt)
-                        nose_mesh = nose_mesh.transform(icp_result)
+                        nose_mesh = nose_mesh.apply_transform(centre_src)
+                        nose_mesh = nose_mesh.apply_transform(scale_fact  )
+                        nose_mesh = nose_mesh.apply_transform(rota)
+                        nose_mesh = nose_mesh.apply_transform(centre_tgt)
+                        nose_mesh = nose_mesh.apply_transform(icp_result)
                     
                         #Enlever la partie 'nez' du masque
                         masque.remove_points(idx_nez,inplace=True)
@@ -271,8 +275,9 @@ def main(args):
                         triangles = np.delete(triangles,0,1)
                         tddfa.tri = triangles.astype(np.dtype(int))
                         
+                        nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
                         #Ajouter le nouveau nez au masque
-                        masque_modified = masque + nose_mesh
+                        masque_modified = masque + nose_mesh_pv
                         nose_affichage = copy.deepcopy(nose_mesh)
                         frame_presente = nombre_de_repetition
                         
@@ -308,7 +313,7 @@ def main(args):
                         
                         #Appliquer la transformation sur le modèle de visage
                         masque_modified = masque_modified.transform(result_ransac)
-                        nose_affichage  = nose_affichage.transform(result_ransac)
+                        nose_affichage  = nose_affichage.apply_transform(result_ransac)
                     
                     # #Render le masque
                     

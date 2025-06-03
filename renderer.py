@@ -84,7 +84,7 @@ def create_scene(img,resolution):
     
     
     #Creation de la scene
-    scene = pyrender.Scene(ambient_light=[0.2, 0.2, 0.2],bg_color=[1.0, 0.0, 0.0])
+    scene = pyrender.Scene(ambient_light=[1.0, 1.0, 1.0],bg_color=[1.0, 0.0, 0.0])
     
     #Creation de la texture du screen
     uv= [ # uv mapping
@@ -98,14 +98,31 @@ def create_scene(img,resolution):
          [1.0, 0.0],
     ]
     
-    material = trimesh.visual.texture.SimpleMaterial(image=img)
-    color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img, material=material)
+    
+    
+    
+    
+    text = pyrender.Texture(name = 'image de fond',source = img,source_channels = 'RGBA' )
+    
+    material = pyrender.MetallicRoughnessMaterial(
+    metallicFactor=0.0,
+    roughnessFactor=1.0,
+    baseColorTexture=text
+)
+    
+    #material = trimesh.visual.texture.SimpleMaterial(image=img)
+    color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img)
     screen=trimesh.Trimesh(vertices=screen.vertices, faces=screen.faces,visual=color_visuals,validate=True, process=False)
-    screen = pyrender.Mesh.from_trimesh(screen)
+    screen = pyrender.Mesh.from_trimesh(screen,material=material)
+    
+    
+    
+    
     
     
     #Creation des nodes
     pose_mesh = np.eye(4)
+    
     pose_camera = np.eye(4)
     pose_camera[:3,:3]=[[-1,0,0],
                        [0,-1,0],
@@ -117,7 +134,7 @@ def create_scene(img,resolution):
     pose_pl = np.eye(4)
     pose_pl[:3,3] = [resolution[0]/2,resolution[1]/2,-500]
     pose_screen = np.eye(4)
-    
+    pose_screen[:3,3]=[resolution[0]/2,resolution[1]/2,0]
     
     npl = pyrender.Node(light=pl,matrix = pose_pl)
     nl = pyrender.Node(light=dl, matrix=pose_camera )
@@ -169,10 +186,16 @@ def update_screen(img,scene,resolution):
     
     
     #Ajouter un nouvel ecran avec la nouvelle texture
-    material = trimesh.visual.texture.SimpleMaterial(image=img)
-    color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img, material=material)
+    text = pyrender.Texture(name = 'image de fond',source = img,source_channels = 'RGBA' )
+    
+    material = pyrender.MetallicRoughnessMaterial(
+    metallicFactor=0.0,
+    roughnessFactor=1.0,
+    baseColorTexture=text)
+    
+    color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img)
     screen2=trimesh.Trimesh(vertices=screen.positions, faces=screen.indices, visual=color_visuals, validate=True, process=False)
-    screen2 = pyrender.Mesh.from_trimesh(screen2)
+    screen2 = pyrender.Mesh.from_trimesh(screen2,material=material)
     pose_mesh = np.eye(4)
     pose_mesh[:3,:3]=[[1,0,0],
                       [0,1,0],
@@ -215,11 +238,29 @@ def update_masque(scene,masque):
 
 if __name__ == '__main__':
     tm= trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj")
+    img = Image.open(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\image_fond.png")
+    img = np.asarray(img).copy()
+    
+    nose_ = pyrender.Mesh.from_trimesh(tm)
+    
+    resolution = (1920,1080)
+    
+    mat_nose = np.eye(4)
+    mat_nose[:3,3] = [resolution[0]/2,resolution[1]/2,0]
+    
+    r = create_renderer(resolution)
+    scene = create_scene(img,resolution)
+    scene.add(nose_,pose = mat_nose)
+    pyrender.Viewer(scene)
+    color, depth = r.render(scene)
+    
+    color = cv2.cvtColor(color,cv2.COLOR_BGR2RGB)
+    cv2.imshow('sans masque',color)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     
     
+        
     
-    mesh = pyrender.Mesh.from_trimesh(tm)
-    scene = pyrender.Scene()
-    scene.add(mesh)
-    pyrender.Viewer(scene, use_raymond_lighting=True)
+    

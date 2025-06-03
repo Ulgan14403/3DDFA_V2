@@ -1,7 +1,7 @@
 import trimesh
 import pyvista as pv
 import numpy as np
-
+import copy
 
 
 def pyvistaToTrimesh(pyMesh):
@@ -55,27 +55,33 @@ def align_nose_y_axis (nose_mesh):
     input : nose mesh 
     output : nose mesh aligned with y axis
     
-    algorithme : on place le nez a l origine puis on fait tourner le nez et on repère oè est la plus petite distance des bounds selon x (axe vertical)
+    algorithme : on place le nez a l origine puis on fait tourner le nez et on repère où est la plus petite distance des bounds selon x (axe vertical)
     probleme : le nez peut etre a l envers 
     
     '''
     angle = 0
-    delta_x = nose_mesh.bounds[1]-nose_mesh.bounds[0] # initialisation
+    delta_x = trimesh.bounds.corners(nose_mesh.bounds)[1][0] - trimesh.bounds.corners(nose_mesh.bounds)[1][0]
     plage = [i for i in range (-180,0)]
-    nose = nose_mesh.copy() # copie du nez pour ne pas prendre en compte la rotation precedente
+    nose = copy.deepcopy(nose_mesh) # copie du nez pour ne pas prendre en compte la rotation precedente
+    nose_pv = trimeshToPyvista(nose)
     # place le nez a l origine
-    origine_translate = [-j for j in nose.center]
-    nose = nose.translate(origine_translate,inplace=True)
+    origine_translate = [-j for j in nose_pv.center]
+    trans_mat = np.eye(4)
+    trans_mat[:3,3] = origine_translate
+    nose = nose.apply_transform(trans_mat)
     
-    nose_final = nose.copy()
+    nose_pv = trimeshToPyvista(nose)
+    nose_final = copy.deepcopy(nose)
     
     for k in plage :
         
-        nose_centered = nose.copy()
+        nose_centered = copy.deepcopy(nose)
         #rotate le mesh 
         
-        nose_centered = nose_centered.rotate_z(k)
-        delta = nose_centered.bounds[1]-nose_centered.bounds[0]
+        
+        rot_mat = trimesh.transformations.rotation_matrix(angle = k, direction = [0,0,1], point = nose_pv.center)
+        nose_centered = nose_centered.apply_transform(rot_mat)
+        delta = trimesh.bounds.corners(nose_centered.bounds)[1][0] - trimesh.bounds.corners(nose_centered.bounds)[1][0]
         
         #save si la longueur est plus grande
         #if k%10 == 0:
@@ -83,13 +89,15 @@ def align_nose_y_axis (nose_mesh):
         if delta < delta_x :
             
             angle = k
-            nose_final = nose_centered.copy()
+            nose_final = copy.deepcopy()
             delta_x = delta
     
-    origine_translate = [-j for j in nose_final.center]
-    nose_final = nose_final.translate(origine_translate,inplace=True)
+    origine_translate = [-j for j in nose_pv.center]
+    trans_mat[:3,3] = origine_translate
+    nose_final = nose_final.apply_transform(trans_mat)
     
     return(nose_final,angle)
+
 
 
 def main():

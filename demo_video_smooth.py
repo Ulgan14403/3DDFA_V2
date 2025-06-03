@@ -11,6 +11,8 @@ import yaml
 from collections import deque
 from crop_V import crop
 
+import cv2
+import trimesh
 from utils.pose import simple_viz_pose,eular2matrix
 from FaceBoxes import FaceBoxes
 from TDDFA import TDDFA
@@ -42,11 +44,7 @@ import os
 
 def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
-    filename = r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj"
-    obj_reader = pv.get_reader(filename)
-    nose_mesh = obj_reader.read()
-    
-    
+    nose_mesh = trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj")
     
     idx_nez = []
     with open('points_communs.txt','r') as f:
@@ -113,7 +111,7 @@ def main(args):
         if args.end > 0 and i > args.end:
             break
 
-        frame_bgr = frame[..., ::-1]  # RGB->BGR
+        frame_bgr = frame#[..., ::-1]  # RGB->BGR
 
         if i == 0:
             #create scene for renderer
@@ -205,7 +203,7 @@ def main(args):
                         target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nez_point_cloud.astype(np.float64)))
                         
                         source = o3d.geometry.PointCloud()
-                        source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.points.astype(np.float64)))
+                        source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.vertices.astype(np.float64)))
                         
                         source,facteur = scale_pcd(source,target)
                         
@@ -213,9 +211,11 @@ def main(args):
                     #recuperer les transformations
                     R_align,centroid_tgt,centroid_src,icp_result = align_and_center_pcds(source,target)
                     
+                    nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
+                    
                     #créer les matrices de transformation
                     centre_src = np.eye(4)
-                    centre_src[:3,3] = -np.asarray(nose_mesh.center).T
+                    centre_src[:3,3] = -np.asarray(nose_mesh_pv.center).T
                     centre_tgt = np.eye(4)
                     centre_tgt[:3,3] = centroid_tgt.T
                     centre_tgt_inv = np.eye(4)
@@ -230,11 +230,11 @@ def main(args):
                     
                     
                     #appliquer les transformation
-                    nose_mesh = nose_mesh.transform(centre_src)
-                    nose_mesh = nose_mesh.transform(scale_fact  )
-                    nose_mesh = nose_mesh.transform(rota)
-                    nose_mesh = nose_mesh.transform(centre_tgt)
-                    nose_mesh = nose_mesh.transform(icp_result)
+                    nose_mesh = nose_mesh.apply_transform(centre_src)
+                    nose_mesh = nose_mesh.apply_transform(scale_fact  )
+                    nose_mesh = nose_mesh.apply_transform(rota)
+                    nose_mesh = nose_mesh.apply_transform(centre_tgt)
+                    nose_mesh = nose_mesh.apply_transform(icp_result)
 
                     
                     #Enlever la partie 'nez' du masque
@@ -246,7 +246,11 @@ def main(args):
                     triangles = np.delete(triangles,0,1)
                     tddfa.tri = triangles.astype(np.dtype(int))
                     
-                    masque_modified = masque + nose_mesh 
+                    nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
+                    
+                    masque_modified = masque + nose_mesh_pv 
+                    nose_mesh_pyr = pyrender.Mesh.from_trimesh(nose_mesh)
+                    
                     nose_affichage = copy.deepcopy(nose_mesh)
                     
                     #Ajouter le nouveau nez au masque
@@ -297,9 +301,12 @@ def main(args):
                     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
                     result_ransac =register_via_correspondences(source,target,target_points,source_points) 
                     
+                    
+                    
+                    
                     #Appliquer la transformation sur le modèle de visage
                     masque_modified = masque_modified.transform(result_ransac)
-                    nose_affichage = nose_affichage.transform(result_ransac)
+                    nose_affichage = nose_affichage.apply_transform(result_ransac)
                 
                 
                 #Render le masque
@@ -320,14 +327,15 @@ def main(args):
                 
                 
                 
-                nose_trimesh = video_utils.pyvistaToTrimesh(nose_affichage)
+                
 
                 
                 #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
-                scene = renderer.update_masque(scene,nose_trimesh)
+                scene = renderer.update_masque(scene,nose_affichage)
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
+                img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
                 
                 
             else:
