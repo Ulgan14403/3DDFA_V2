@@ -86,7 +86,8 @@ def main(args):
 
     # Get the color
     resolution = (640,480) #/!\ Ne pas oublier de changer les fps en fonction de la resolution, en accord avec les capacitées de la caméra /!\
-    config.enable_stream(rs.stream.color, resolution[0],resolution[1], rs.format.bgr8, 30)
+    fps =30
+    config.enable_stream(rs.stream.color, resolution[0],resolution[1], rs.format.bgr8, fps)
 
     # Start streaming
     pipeline.start(config)

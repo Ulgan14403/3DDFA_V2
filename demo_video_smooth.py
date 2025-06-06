@@ -2,7 +2,7 @@
 
 __author__ = 'cleardusk'
 
-import renderer #custom renderer #optimize on ne peut pas ouvrir d'autres fenetres sinon ca crash
+import renderer #custom renderer 
 import argparse
 import imageio
 import numpy as np
@@ -22,11 +22,7 @@ from utils.functions import cv_draw_landmark, get_suffix
 
 import pyvista as pv
 import open3d as o3d
-import cv2
-import time
-import matplotlib.pyplot as plt
 import pyrender
-from PIL import Image
 
 from alignment import prepare_dataset,execute_global_registration,execute_fast_global_registration,register_via_correspondences,draw_registration_result,scale_pcd,aligne_boite,custom_draw_geometry,aligne_boite_origine
 from alignment import align_and_center_pcds
@@ -280,22 +276,6 @@ def main(args):
 
                     voxel_size = 1
                     
-                    try:                       
-                        
-                        result_ransac =register_via_correspondences(source,target,target_points,source_points)
-                        #result_ransac = execute_fast_global_registration(source_down, target_down,source_fpfh, target_fpfh,1)
-                        
-                        #Appliquer la transformation sur le modèle de visage
-                        masque_modified = masque_modified.transform(result_ransac)
-                        nose_affichage = nose_affichage.transform(result_ransac)
-                    except (RuntimeError):
-                        print('safeguard')
-                        
-                        source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,1,voxel_size)
-                        result_ransac = execute_fast_global_registration(source_down, target_down,source_fpfh, target_fpfh,1)
-                        #Appliquer la transformation sur le modèle de visage
-                        nose_affichage = nose_affichage.transform(result_ransac.transformation)
-                            
                     
                     
                     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
@@ -304,8 +284,7 @@ def main(args):
                     #Smoothing
                     deplacement = np.linalg.norm(result_ransac[:3,3])
                    
-                    print(max(abs(nose_affichage.bounds[1]-nose_affichage.bounds[0])))
-                    print(deplacement)
+                    
                     
                     
                     #Appliquer la transformation sur le modèle de visage
@@ -340,6 +319,8 @@ def main(args):
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
                 img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
+                
+                #optimize essayer de mettre les roi depuis les lmks
                 
                 
             else:
@@ -381,7 +362,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme1sec.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')
