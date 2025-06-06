@@ -2,7 +2,7 @@
 
 __author__ = 'cleardusk'
 
-import renderer #custom renderer #optimize on ne peut pas ouvrir d'autres fenetres sinon ca crash
+import renderer #custom renderer 
 import argparse
 import imageio
 import numpy as np
@@ -22,24 +22,33 @@ from utils.functions import cv_draw_landmark, get_suffix
 
 import pyvista as pv
 import open3d as o3d
-import cv2
-import time
-import matplotlib.pyplot as plt
 import pyrender
-from PIL import Image
 
 from alignment import prepare_dataset,execute_global_registration,execute_fast_global_registration,register_via_correspondences,draw_registration_result,scale_pcd,aligne_boite,custom_draw_geometry,aligne_boite_origine
 from alignment import align_and_center_pcds
 import video_utils
 
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 from PIL import Image
 import copy
 
 import os
 #os.environ["PYOPENGL_PLATFORM"] = "pyglet"
+
+from OneEuroFilter import OneEuroFilter
+
+config_euro = {
+    'freq': 120,       # Hz
+    'mincutoff': 1.0,  # Hz
+    'beta': 0.1,       
+    'dcutoff': 10.0    
+    }
+
+one_euro_filter_x = OneEuroFilter(**config_euro)
+one_euro_filter_y = OneEuroFilter(**config_euro)
+one_euro_filter_z = OneEuroFilter(**config_euro)
 
 
 def main(args):
@@ -100,7 +109,8 @@ def main(args):
     temps_par_frame = []
     nombre_de_repetition = 5
     compteur = 0
-    
+    track_center=[]
+    track_center_filtered = []
     
     # run
     dense_flag = args.opt in ('2d_dense', '3d',)
@@ -110,7 +120,7 @@ def main(args):
             continue
         if args.end > 0 and i > args.end:
             break
-
+        compteur+=1
         frame_bgr = frame#[..., ::-1]  # RGB->BGR
 
         if i == 0:
@@ -280,39 +290,31 @@ def main(args):
 
                     voxel_size = 1
                     
-                    try:                       
-                        
-                        result_ransac =register_via_correspondences(source,target,target_points,source_points)
-                        #result_ransac = execute_fast_global_registration(source_down, target_down,source_fpfh, target_fpfh,1)
-                        
-                        #Appliquer la transformation sur le modèle de visage
-                        masque_modified = masque_modified.transform(result_ransac)
-                        nose_affichage = nose_affichage.transform(result_ransac)
-                    except (RuntimeError):
-                        print('safeguard')
-                        
-                        source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,1,voxel_size)
-                        result_ransac = execute_fast_global_registration(source_down, target_down,source_fpfh, target_fpfh,1)
-                        #Appliquer la transformation sur le modèle de visage
-                        nose_affichage = nose_affichage.transform(result_ransac.transformation)
-                            
                     
                     
                     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
                     result_ransac =register_via_correspondences(source,target,target_points,source_points) 
-                    
-                    #Smoothing
-                    deplacement = np.linalg.norm(result_ransac[:3,3])
-                   
-                    print(max(abs(nose_affichage.bounds[1]-nose_affichage.bounds[0])))
-                    print(deplacement)
                     
                     
                     #Appliquer la transformation sur le modèle de visage
                     masque_modified = masque_modified.transform(result_ransac)
                     nose_affichage = nose_affichage.apply_transform(result_ransac)
 
+                track_center.append(nose_affichage.centroid.tolist())
+                
+                new_vert = np.zeros_like(nose_affichage.vertices)
+                
+                for k in range(len(nose_affichage.vertices)):
+                    new_vector = [0,0,0]
+                    new_vector[0] = one_euro_filter_x(nose_affichage.vertices[k][0],compteur/fps)
+                    new_vector[1] = one_euro_filter_y(nose_affichage.vertices[k][1],compteur/fps)
+                    new_vector[2] = one_euro_filter_z(nose_affichage.vertices[k][2],compteur/fps)
+                    new_vert[k] = new_vector
                     
+                nose_affichage.vertices = new_vert
+                track_center_filtered.append(new_vector)
+                
+                
                 #Render le masque
                 
                 # ver_ave = (masque_modified.points).T
@@ -340,6 +342,8 @@ def main(args):
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
                 img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
+                
+                #optimize essayer de mettre les roi depuis les lmks
                 
                 
             else:
@@ -376,12 +380,28 @@ def main(args):
     r.delete()
     print(f'Dump to {video_wfp}')
     
+    disp_frame = [i for i in range(compteur)]
+    track_center = np.asarray(track_center)
+    track_center_filtered = np.asarray(track_center_filtered)
+    
+    fig, axs = plt.subplots(3,sharex=True)
+    
+    axs[0].plot(disp_frame,track_center[:,0],label = 'raw')
+    axs[1].plot(disp_frame,track_center[:,1],label = 'raw')
+    axs[2].plot(disp_frame,track_center[:,2],label = 'raw')
+    
+    axs[0].plot(disp_frame,track_center_filtered[:,0],label= 'filtered')
+    axs[1].plot(disp_frame,track_center_filtered[:,1],label= 'filtered')
+    axs[2].plot(disp_frame,track_center_filtered[:,2],label= 'filtered')
+    
+    plt.show()
+    
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_continu.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')

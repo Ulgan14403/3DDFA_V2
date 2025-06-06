@@ -360,7 +360,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-o', '--opt', type=str, default='3d', choices=['2d_sparse', '2d_dense', '3d'])
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
-    parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')
+    parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')
     parser.add_argument('--onnx', action='store_true', default=True)
     parser.add_argument('--nez',type=str,default =r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl" )
 
