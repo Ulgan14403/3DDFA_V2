@@ -2,19 +2,6 @@ import numpy as np
 import math
 import scipy 
 
-config_mini_x = {
-    'freq' : 30,
-    'mincutoff' :1,
-    'gamma' : 0,
-    'dcutoff' : 1 
-    }
-
-config_mini_y = {
-    'freq' : 30,
-    'mincutoff' :1e-4,
-    'gamma' : 1e-5,
-    'dcutoff' : 1 
-    }
 
 
 # ----------------------------------------------------------------------------
@@ -200,16 +187,17 @@ class Rotation_Minilag(object):
         
         
         
-    def __call__(self):
+    def __call__(self,R):
+        self.R = R
         wt = Euclid2Lie(self.R)
         Rt = Lie2Euclid(wt)
         wt = [0,0,0]
         
         #wt1filtree = Euclid2Lie(self.Rt1*Lie2Euclid(self.wt1filt))
         wt_filtrage=[0,0,0]
-        wt_filtrage[0] = self.filtre_x(wt[0],t)
-        wt_filtrage[0] = self.filtre_y(wt[1],t)
-        wt_filtrage[0] = self.filtre_z(wt[2],t)
+        wt_filtrage[0] = self.filtre_x(wt[0])
+        wt_filtrage[1] = self.filtre_y(wt[1])
+        wt_filtrage[2] = self.filtre_z(wt[2])
         # ---------------wtfilt = filtrage(wt,wt1filt) #todo
         wtfilt =Euclid2Lie(Rt*Lie2Euclid(wtfilt))
         

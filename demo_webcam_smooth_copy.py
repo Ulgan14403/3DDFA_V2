@@ -35,23 +35,23 @@ import copy
 
 import renderer
 from minilag_filter import MinilagFilter
-
+import minilag_filter
 
 
 def main(args):
     config_mini_x = {
-        'freq' : 30,
-        'mincutoff' :1e-3,
-        'gamma' : 1e-10,
-        'dcutoff' : 1 
-        }
+    'freq' : 30,
+    'mincutoff' :1e-3,
+    'gamma' : 1e-4,
+    'dcutoff' : 1 
+    }
 
     config_mini_y = {
-        'freq' : 30,
-        'mincutoff' :1e-6,
-        'gamma' : 1e-10,
-        'dcutoff' : 1 
-        }
+    'freq' : 30,
+    'mincutoff' :1e-3,
+    'gamma' : 1e-4,
+    'dcutoff' : 1 
+    }
 
 
 
@@ -309,6 +309,7 @@ def main(args):
                         #Ajouter le nouveau nez au masque
                         masque_modified = masque + nose_mesh_pv
                         nose_affichage = copy.deepcopy(nose_mesh)
+                        nose_affichage2 = copy.deepcopy(nose_affichage)
                         frame_presente = nombre_de_repetition
                         
                     
@@ -362,7 +363,7 @@ def main(args):
                         pos_yf.append(pred[1])
                         pos_zf.append(pred[2])
                         pred  = np.subtract(pred,centroid)
-                        nose_affichage.vertices = nose_affichage.vertices + pred
+                        nose_affichage2.vertices = nose_affichage.vertices + pred
                     
                     
                     
@@ -392,7 +393,7 @@ def main(args):
                 
                 #Render l'image
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
-                scene = renderer.update_masque(scene,nose_affichage)
+                scene = renderer.update_masque(scene,nose_affichage2)
                 img_draw,depth = r.render(scene)
                 
                 cv2.imshow('image', img_draw)

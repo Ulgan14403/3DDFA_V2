@@ -39,6 +39,7 @@ import os
 
 from OneEuroFilter import OneEuroFilter
 from minilag_filter import MinilagFilter
+import minilag_filter
 
 config_euro = {
     'freq': 120,       # Hz
@@ -65,11 +66,21 @@ config_mini_y = {
     'dcutoff' : 1 
     }
 
-
+config_mini_rot = {
+    'freq' : 30,
+    'mincutoff' :1e-3,
+    'gamma' : 1e-5,
+    'dcutoff' : 1 
+    }
 
 MiniLag_x = MinilagFilter(**config_mini_x)
 MiniLag_y = MinilagFilter(**config_mini_y)
 MiniLag_z = MinilagFilter(**config_mini_y)
+
+Minilag_rot = minilag_filter.Rotation_Minilag(config_mini_rot)
+
+
+
 pos_x = []
 pos_y = []
 pos_z = []
@@ -334,12 +345,16 @@ def main(args):
                     #todo ici
                     nose_affichage_pcd = o3d.geometry.PointCloud()
                     nose_affichage_pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_affichage.vertices.astype(np.float64)))
-                    centroid, rot = compute_pca_transform(nose_affichage_pcd)
+                    centroid, Mat_rot = compute_pca_transform(nose_affichage_pcd)
+                    
+                    w_rot = minilag_filter.Euclid2Lie(Mat_rot)
+                    
+                    
                     pos_x.append(centroid[0])
                     pos_y.append(centroid[1])
                     pos_z.append(centroid[2])
                     pred=[0,0,0]
-                    pred[0] = MiniLag_x(centroid[0]) #todo changer les paramètres pour placer au bon endroit ?
+                    pred[0] = MiniLag_x(centroid[0]) 
                     pred[1] = MiniLag_y(centroid[1])
                     pred[2] = MiniLag_z(centroid[2])
                     pos_xf.append(pred[0])
@@ -451,7 +466,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/continu_court.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')

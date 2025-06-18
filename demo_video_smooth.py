@@ -142,7 +142,7 @@ def main(args):
             param_lst, roi_box_lst = tddfa(frame_bgr, [pre_ver], crop_policy='landmark')
 
             roi_box = roi_box_lst[0]
-            if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 2020: #todo #### ligne a modifier pour detecter a chaque frame ou effectuer un suivi #### 500000 pour detection  continue, 2020 pour detection unique
+            if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 500000000000000: #todo #### ligne a modifier pour detecter a chaque frame ou effectuer un suivi #### 500000 pour detection  continue, 2020 pour detection unique
                 boxes,thresh = crop(frame_bgr,True)
                 #print(thresh)
                 if thresh[0] <0.7:
@@ -362,7 +362,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/continu_court_stat.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=1, type=int, help='the next frames of smoothing')
