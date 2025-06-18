@@ -1,6 +1,20 @@
 import numpy as np
 import math
+import scipy 
 
+config_mini_x = {
+    'freq' : 30,
+    'mincutoff' :1,
+    'gamma' : 0,
+    'dcutoff' : 1 
+    }
+
+config_mini_y = {
+    'freq' : 30,
+    'mincutoff' :1e-4,
+    'gamma' : 1e-5,
+    'dcutoff' : 1 
+    }
 
 
 # ----------------------------------------------------------------------------
@@ -41,7 +55,7 @@ class LowPassFilter(object):
 #-------------------------------------------------------------------------
 
 class MinilagFilter(object):
-    def __init__(self,freq:float,mincutoff:float=1.0,beta:float=0.0,dcutoff:float=1.0) -> None:
+    def __init__(self,freq:float,mincutoff:float=1.0,gamma:float=0.0,dcutoff:float=1.0,eta:float=0.95,beta:float=0.25) -> None:
         """ Initializes the One Euro Filter
         
         :param freq: An estimate of the frequency in Hz of the signal (> 0), if timestamps are not available.
@@ -62,8 +76,143 @@ class MinilagFilter(object):
             raise ValueError("dcutoff should be >0")
         self.__freq = float(freq)
         self.__mincutoff = float(mincutoff)
+        self.__gamma = float(gamma)
+        self.__eta = float(eta)
         self.__beta = float(beta)
         self.__dcutoff = float(dcutoff)
         self.__x = LowPassFilter(self.__alpha(self.__mincutoff))
         self.__dx = LowPassFilter(self.__alpha(self.__dcutoff))
-        self.__lasttime = None
+        self.__lasttime = []
+        self.__updatedFilteredLast = None
+        self.__smoothedValue = None
+        self.__deltaFilteredLast = 0
+        self.__compensatedValue = None
+        self.__deltaCurrentFiltered = None
+    
+    #-------------------------------------Alpha
+    def __alpha(self, cutoff:float) -> float:
+        """Computes the alpha value from a cutoff frequency.
+
+        :param cutoff: cutoff frequency in Hz (> 0).
+        :type cutoff: float
+        :returns:  the alpha value to be used for the low pass filter
+        :rtype: float
+        """
+
+        te    = 1.0 / self.__freq
+        tau   = 1.0 / (2*math.pi*cutoff)
+        return  1.0 / (1.0 + tau/te)
+        
+    #-------------------------------------Backtracking update
+    
+    
+    def fit_curve(self,last_values,n=10,deg=3):
+        '''
+        fit un polynome de 3e degré sur les 10 dernières données
+        '''
+        if len(last_values)<10 : 
+            raise ValueError('last_values must contain at least 10 values') 
+        poly = np.polynomial.polynomial.Polynomial.fit([k*self.__freq for k in range(n)],last_values,deg)
+        return(poly(n-2))
+    
+    def backtracked_value(self,poly_fitted,filtered,alpha = 0.8):
+        '''
+        Combine les données fittées et filtrées pour donner la nouvelle version de t-1
+        '''
+        new_value =  alpha * filtered + (1-alpha) * poly_fitted
+        
+        self.__updatedFilteredLast = new_value
+    
+    #-------------------------------------Prediction with compensation
+    
+    def smooth_value(self,Pt,dx):
+        
+        edx = self.__dx(dx)
+        
+        c = self.__mincutoff + self.__gamma*(edx)#todo trouver la derivée (utiliser le low pass filter ?)
+        tau = 1/(2*c*np.pi)
+        lambda_param = 1/(1+tau/self.__freq)
+        pred = lambda_param * Pt + (1-lambda_param)*self.__updatedFilteredLast
+        
+        self.__smoothedValue = pred
+        
+    def compensate_value(self,Pt):
+        
+        deltaLast = self.__lasttime[-1] - self.__updatedFilteredLast
+
+        self.__deltaFilteredLast = self.__eta * self.__deltaFilteredLast + (1-self.__eta)*deltaLast 
+        
+        self.__deltaCurrentFiltered = self.__beta*(Pt-self.__smoothedValue) + (1-self.__beta)* self.__deltaFilteredLast 
+        self.__compensatedValue = self.__smoothedValue + self.__deltaCurrentFiltered
+
+        self.__deltaFilteredLast = self.__deltaCurrentFiltered
+        
+    
+    #-------------------------------------Application du filtre  
+    def __call__(self,Pt):
+        if len(self.__lasttime) < 10:
+            self.__lasttime.append(Pt)
+            dx=0
+            self.__compensatedValue = self.__dx(Pt) #todo initialisation renvoie juste des valeurs qui descendent
+            
+        else : 
+            self.__lasttime.pop(0)
+            self.__lasttime.append(Pt)
+            
+            dx = Pt - self.__dx.lastFilteredValue()
+            
+            #-----------------------------Backtracking
+            poly_value = self.fit_curve(self.__lasttime)
+            self.backtracked_value(poly_value,self.__compensatedValue)
+            
+            #------------------------------Prediction
+            self.smooth_value(Pt,dx)
+            self.compensate_value(Pt)
+            
+            
+            
+            
+      
+        return(self.__compensatedValue)
+            
+            
+def Euclid2Lie(R):
+    A = scipy.linalg.logm(R)
+    return(np.array((A[2,1],A[0,2],A[1,0]))) #vecteur créé pour l'algèbre de Lie
+
+def Lie2Euclid(w):
+    A = np.array((
+        [0,-w[2],w[1]],
+        [w[2],0,-w[0]],
+        [-w[1],w[0],0]    
+    ))
+    return(scipy.linalg.logm(A))
+
+
+class Rotation_Minilag(object):
+    def __init__(self,config):
+        self.R = None
+        self.Rt1 = None
+        self.wt1filt = None
+        self.filtre_x = MinilagFilter(**config) 
+        self.filtre_y = MinilagFilter(**config) 
+        self.filtre_z = MinilagFilter(**config) 
+        
+        
+        
+    def __call__(self):
+        wt = Euclid2Lie(self.R)
+        Rt = Lie2Euclid(wt)
+        wt = [0,0,0]
+        
+        #wt1filtree = Euclid2Lie(self.Rt1*Lie2Euclid(self.wt1filt))
+        wt_filtrage=[0,0,0]
+        wt_filtrage[0] = self.filtre_x(wt[0],t)
+        wt_filtrage[0] = self.filtre_y(wt[1],t)
+        wt_filtrage[0] = self.filtre_z(wt[2],t)
+        # ---------------wtfilt = filtrage(wt,wt1filt) #todo
+        wtfilt =Euclid2Lie(Rt*Lie2Euclid(wtfilt))
+        
+        
+        
+        return(Lie2Euclid(wtfilt)) 

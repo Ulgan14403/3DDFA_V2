@@ -17,7 +17,18 @@ from bfm.bfm import BFMModel
 from bfm.bfm_onnx import convert_bfm_to_onnx
 
 make_abs_path = lambda fn: osp.join(osp.dirname(osp.realpath(__file__)), fn)
+from OneEuroFilter import OneEuroFilter
 
+config_euro = {
+    'freq': 30,       # Hz
+    'mincutoff': 1,  # Hz
+    'beta': 0.0,       
+    'dcutoff': 5.0    
+    }
+
+one_euro_filter_x = OneEuroFilter(**config_euro)
+one_euro_filter_y = OneEuroFilter(**config_euro)
+one_euro_filter_z = OneEuroFilter(**config_euro)
 
 class TDDFA_ONNX(object):
     """TDDFA_ONNX: the ONNX version of Three-D Dense Face Alignment (TDDFA)"""
@@ -185,6 +196,11 @@ class TDDFA_ONNX(object):
             
             #alpha_shp = np.ones((40,1)).astype(np.float32)
             if dense_flag:
+                #print(offset)
+                offset[0] = one_euro_filter_x(offset[0])
+                offset[1] = one_euro_filter_y(offset[1])
+                offset[2] = one_euro_filter_z(offset[2])
+                #print(offset)
                 inp_dct = {
                     'R': R, 'offset': offset, 'alpha_shp': alpha_shp, 'alpha_exp': alpha_exp
                 }
