@@ -405,7 +405,7 @@ def main(args):
                 scene = renderer.update_masque(scene,nose_affichage2)
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
-                img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
+                #img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
                 
                 #optimize essayer de mettre les roi depuis les lmks
                 

@@ -156,7 +156,6 @@ def main(args):
             color_frame = frames.get_color_frame()
             # Convert images to numpy arrays
             frame_bgr = np.asanyarray(color_frame.get_data()) #sous forme numpy
-            
             if i == 0:
                 #Création du renderer pour afficher le masque 
                 scene = renderer.create_scene(frame_bgr.copy(),resolution)
@@ -392,9 +391,13 @@ def main(args):
                 
                 
                 #Render l'image
+                frame_bgr = cv2.cvtColor(frame_bgr,cv2.COLOR_BGR2RGB)
+                
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
                 scene = renderer.update_masque(scene,nose_affichage2)
                 img_draw,depth = r.render(scene)
+                
+                img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
                 
                 cv2.imshow('image', img_draw)
                 k = cv2.waitKey(10)
@@ -434,7 +437,7 @@ if __name__ == '__main__':
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')
     parser.add_argument('--onnx', action='store_true', default=True)
-    parser.add_argument('--nez',type=str,default =r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl" )
+    parser.add_argument('--nez',type=str,default =r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj" )
 
     args = parser.parse_args()
     main(args)
