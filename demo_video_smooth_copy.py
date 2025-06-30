@@ -37,7 +37,7 @@ import copy
 import os
 #os.environ["PYOPENGL_PLATFORM"] = "pyglet"
 
-from OneEuroFilter import OneEuroFilter
+
 from minilag_filter import MinilagFilter
 import minilag_filter
 
@@ -48,9 +48,7 @@ config_euro = {
     'dcutoff': 10.0    
     }
 
-one_euro_filter_x = OneEuroFilter(**config_euro)
-one_euro_filter_y = OneEuroFilter(**config_euro)
-one_euro_filter_z = OneEuroFilter(**config_euro)
+
 
 config_mini_x = {
     'freq' : 30,
@@ -233,6 +231,11 @@ def main(args):
                 if frame_presente == 1 :
                     
                     
+                    
+                    
+                    
+                    
+                    
                     # Recupération du nez a partir du masque, sous la forme de nuage de point
                     nez_point_cloud = np.ndarray((1,3))
                     for k in idx_nez :
@@ -347,8 +350,7 @@ def main(args):
                     nose_affichage_pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_affichage.vertices.astype(np.float64)))
                     centroid, Mat_rot = compute_pca_transform(nose_affichage_pcd)
                     
-                    w_rot = minilag_filter.Euclid2Lie(Mat_rot)
-                    
+                   
                     
                     pos_x.append(centroid[0])
                     pos_y.append(centroid[1])
@@ -360,24 +362,23 @@ def main(args):
                     pos_xf.append(pred[0])
                     pos_yf.append(pred[1])
                     pos_zf.append(pred[2])
-                    pred  = np.subtract(pred,centroid)
+                    translate_offset  = np.subtract(pred,centroid)
                     
-                    nose_affichage2.vertices = nose_affichage.vertices + pred
-                '''
-                track_center.append(nose_affichage.centroid.tolist())
-                
-                new_vert = np.zeros_like(nose_affichage.vertices)
-                
-                for k in range(len(nose_affichage.vertices)):
-                    new_vector = [0,0,0]
-                    new_vector[0] = one_euro_filter_x(nose_affichage.vertices[k][0],compteur/fps)
-                    new_vector[1] = one_euro_filter_y(nose_affichage.vertices[k][1],compteur/fps)
-                    new_vector[2] = one_euro_filter_z(nose_affichage.vertices[k][2],compteur/fps)
-                    new_vert[k] = new_vector
+                    #lissage des rotations
+                    rot_filtered = Minilag_rot(Mat_rot)
+        
+                    #soustraction de 2 matrices de rotations
+                    Mat_offset =  rot_filtered @ Mat_rot.T
                     
-                nose_affichage.vertices = new_vert
-                track_center_filtered.append(new_vector)
-                '''
+                    #Mat_transfo_offset = trimesh.transformations.transform_around(Mat_transfo_offset,pred)
+                    
+                    
+                    nose_affichage2.vertices = nose_affichage.vertices - centroid #placer a l origine
+                    nose_affichage2.vertices = nose_affichage2.vertices @ Mat_offset.T #appliquer la rotation
+                    nose_affichage2.vertices = nose_affichage2.vertices + pred  #placer au bon endroit
+                
+                
+                
                 
                 #Render le masque
                 
@@ -405,7 +406,7 @@ def main(args):
                 scene = renderer.update_masque(scene,nose_affichage2)
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
-                #img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
+                img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
                 
                 #optimize essayer de mettre les roi depuis les lmks
                 
@@ -466,7 +467,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/continu_court.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')

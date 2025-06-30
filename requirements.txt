@@ -13,3 +13,10 @@ scikit-image # skimage
 scipy
 onnxruntime
 gradio
+trimesh
+pyrender
+pyrealsense2
+pyvista
+open3d
+scikit-learn
+#mediapipe

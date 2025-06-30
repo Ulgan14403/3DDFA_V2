@@ -52,12 +52,18 @@ def main(args):
     'gamma' : 1e-4,
     'dcutoff' : 1 
     }
-
+    config_mini_rot = {
+    'freq' : 30,
+    'mincutoff' :0.8,
+    'gamma' : 0.6,
+    'dcutoff' : 1 
+    }
 
 
     MiniLag_x = MinilagFilter(**config_mini_x)
     MiniLag_y = MinilagFilter(**config_mini_y)
     MiniLag_z = MinilagFilter(**config_mini_y)
+    Minilag_rot = minilag_filter.Rotation_Minilag(config_mini_rot)
     pos_x = []
     pos_y = []
     pos_z = []
@@ -350,19 +356,34 @@ def main(args):
                         #todo ici
                         nose_affichage_pcd = o3d.geometry.PointCloud()
                         nose_affichage_pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_affichage.vertices.astype(np.float64)))
-                        centroid, rot = compute_pca_transform(nose_affichage_pcd)
+                        centroid, Mat_rot = compute_pca_transform(nose_affichage_pcd)
+                    
+                   
+                    
                         pos_x.append(centroid[0])
                         pos_y.append(centroid[1])
                         pos_z.append(centroid[2])
                         pred=[0,0,0]
-                        pred[0] = MiniLag_x(centroid[0])
+                        pred[0] = MiniLag_x(centroid[0]) 
                         pred[1] = MiniLag_y(centroid[1])
                         pred[2] = MiniLag_z(centroid[2])
                         pos_xf.append(pred[0])
                         pos_yf.append(pred[1])
                         pos_zf.append(pred[2])
-                        pred  = np.subtract(pred,centroid)
-                        nose_affichage2.vertices = nose_affichage.vertices + pred
+                        translate_offset  = np.subtract(pred,centroid)
+                        
+                        #lissage des rotations
+                        rot_filtered = Minilag_rot(Mat_rot)
+            
+                        #soustraction de 2 matrices de rotations
+                        Mat_offset =  rot_filtered @ Mat_rot.T
+                        
+                        #Mat_transfo_offset = trimesh.transformations.transform_around(Mat_transfo_offset,pred)
+                        
+                        
+                        nose_affichage2.vertices = nose_affichage.vertices - centroid #placer a l origine
+                        nose_affichage2.vertices = nose_affichage2.vertices @ Mat_offset.T #appliquer la rotation
+                        nose_affichage2.vertices = nose_affichage2.vertices + pred  #placer au bon endroit
                     
                     
                     

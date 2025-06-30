@@ -76,7 +76,7 @@ def create_scene(img,resolution):
     mesh = pyrender.Mesh.from_trimesh(tm)
     
     #Creating lights
-    pl = pyrender.PointLight(color=[1.0, 1.0, 1.0]) #candela
+    pl = pyrender.PointLight(color=[1.0, 1.0, 1.0],intensity = 0) #candela
     dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=0.0) #lux
     
     #Creating camera
@@ -108,7 +108,7 @@ def create_scene(img,resolution):
     metallicFactor=0.0,
     roughnessFactor=1.0,
     baseColorTexture=text
-)
+    )
     
     #material = trimesh.visual.texture.SimpleMaterial(image=img)
     color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img)
@@ -132,7 +132,7 @@ def create_scene(img,resolution):
     
     pose_camera[:3,3]=[resolution[0]/2,resolution[1]/2,z] # orthographic camera
     pose_pl = np.eye(4)
-    pose_pl[:3,3] = [resolution[0]/2,resolution[1]/2,-500]
+    pose_pl[:3,3] = [resolution[0]/2,resolution[1]/2,-10]
     pose_screen = np.eye(4)
     pose_screen[:3,3]=[resolution[0]/2,resolution[1]/2,0]
     
@@ -143,7 +143,7 @@ def create_scene(img,resolution):
     n_scr = pyrender.Node(name='screen',mesh=screen,matrix = pose_screen)
     
     #Ajout des nodes
-    #scene.add_node(npl)
+    scene.add_node(npl)
     #scene.add_node(nm)
     scene.add_node(nl)
     scene.add_node(nc)
@@ -188,10 +188,12 @@ def update_screen(img,scene,resolution):
     #Ajouter un nouvel ecran avec la nouvelle texture
     text = pyrender.Texture(name = 'image de fond',source = img,source_channels = 'RGBA' )
     
+    
     material = pyrender.MetallicRoughnessMaterial(
     metallicFactor=0.0,
     roughnessFactor=1.0,
-    baseColorTexture=text)
+    baseColorTexture=text
+    )
     
     color_visuals = trimesh.visual.TextureVisuals(uv=uv, image=img)
     screen2=trimesh.Trimesh(vertices=screen.positions, faces=screen.indices, visual=color_visuals, validate=True, process=False)

@@ -134,7 +134,17 @@ class MinilagFilter(object):
 
         self.__deltaFilteredLast = self.__deltaCurrentFiltered
         
+    def set_last(self,value):
+        if len(self.__lasttime) <= 10:
+            self.__lasttime.append(value)
+        else:
+            self.__lasttime.pop()
+            self.__lasttime.append(value)
     
+    
+    
+    def last_values(self):
+        return(self.__lasttime)
     #-------------------------------------Application du filtre  
     def __call__(self,Pt):
         if len(self.__lasttime) < 10:
@@ -173,34 +183,45 @@ def Lie2Euclid(w):
         [w[2],0,-w[0]],
         [-w[1],w[0],0]    
     ))
-    return(scipy.linalg.logm(A))
+    return(scipy.linalg.expm(A))
 
 
 class Rotation_Minilag(object):
     def __init__(self,config):
         self.R = None
         self.Rt1 = None
-        self.wt1filt = None
+        self.wt1filt = None 
         self.filtre_x = MinilagFilter(**config) 
         self.filtre_y = MinilagFilter(**config) 
         self.filtre_z = MinilagFilter(**config) 
-        
+        self.compteur = 0
         
         
     def __call__(self,R):
+        
         self.R = R
-        wt = Euclid2Lie(self.R)
-        Rt = Lie2Euclid(wt)
-        wt = [0,0,0]
         
-        #wt1filtree = Euclid2Lie(self.Rt1*Lie2Euclid(self.wt1filt))
-        wt_filtrage=[0,0,0]
-        wt_filtrage[0] = self.filtre_x(wt[0])
-        wt_filtrage[1] = self.filtre_y(wt[1])
-        wt_filtrage[2] = self.filtre_z(wt[2])
-        # ---------------wtfilt = filtrage(wt,wt1filt) #todo
-        wtfilt =Euclid2Lie(Rt*Lie2Euclid(wtfilt))
+        if self.compteur ==0: #initialisation
+            self.compteur+=1
+            self.Rt1 = self.R
+            return(self.R)
+        
+        if self.compteur > 0:
+            
+            deltaR = self.R @ self.Rt1.T
+            wt = Euclid2Lie(deltaR)
+            
+            wt_filtree = [0,0,0]
+            wt_filtree[0] = self.filtre_x(wt[0])
+            wt_filtree[1] = self.filtre_x(wt[1])
+            wt_filtree[2] = self.filtre_x(wt[2])
+            
+            Rfiltered = Lie2Euclid(wt_filtree) @ self.Rt1
+            
+            self.Rt1 = Rfiltered
+            return(Rfiltered) 
         
         
-        
-        return(Lie2Euclid(wtfilt)) 
+            
+
+            
