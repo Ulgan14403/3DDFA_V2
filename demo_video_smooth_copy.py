@@ -19,6 +19,7 @@ from TDDFA import TDDFA
 from utils.render import render
 #from utils.render_ctypes import render
 from utils.functions import cv_draw_landmark, get_suffix
+import creation_nez
 
 import pyvista as pv
 import open3d as o3d
@@ -87,8 +88,9 @@ pos_yf = []
 pos_zf = []
 def main(args):
     cfg = yaml.load(open(args.config), Loader=yaml.SafeLoader)
-    nose_mesh = trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj")
+    #nose_mesh = trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA-V3\nez_cible_colore.obj")
     
+    #Recuperer les indices des sommets qui composent le nez dans le masque BFM
     idx_nez = []
     with open('points_communs.txt','r') as f:
         lines = f.readlines() 
@@ -96,8 +98,7 @@ def main(args):
             idx_nez.append(int(line))
         f.close()
    
-    nose_mesh_ori,angle = video_utils.align_nose_y_axis(nose_mesh)
-    nose_mesh=nose_mesh_ori
+    
 
     
     
@@ -132,19 +133,21 @@ def main(args):
     n = n_pre + n_next + 1
     queue_ver = deque()
     queue_frame = deque()
+    
+    
+    
+    #Variables
     pose = [0,0,0]
     R = np.array(([0.0,0.0,0.0],
                  [0.0,0.0,0.0],
                  [0.0,0.0,0.0]))
-    R= R.astype(np.float32)
+    R= R.astype(np.float32) 
     
-    n=0
-    frame_presente = 1
-    temps_par_frame = []
-    nombre_de_repetition = 5
-    compteur = 0
-    track_center=[]
-    track_center_filtered = []
+    n=0 
+    frame_presente = 1               # 1 si frame n1
+    compteur = 0                     #compte le nombre de frame
+    track_center=[]                  #position du centre du mesh au cours du temps # visualiation
+    track_center_filtered = []       #position filtree du centre du mesh au cours du temps #visualisation
     
     # run
     dense_flag = args.opt in ('2d_dense', '3d',)
@@ -158,7 +161,7 @@ def main(args):
         frame_bgr = frame#[..., ::-1]  # RGB->BGR
 
         if i == 0:
-            #create scene for renderer
+            # Creer la scene pour le renderer
             
             print('initialisation')
             resolution = (np.shape(frame_bgr)[1],np.shape(frame_bgr)[0])
@@ -192,13 +195,12 @@ def main(args):
             roi_box = roi_box_lst[0]
             if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 500000000000000: #todo #### ligne a modifier pour detecter a chaque frame ou effectuer un suivi #### 500000 pour detection  continue, 2020 pour detection unique
                 boxes,thresh = crop(frame_bgr,True)
-                #print(thresh)
                 if thresh[0] <0.7:
                     continue
                 boxes = [boxes[0]]
-                param_lst, roi_box_lst = tddfa(frame_bgr, boxes)
+                param_lst, roi_box_lst = tddfa(frame_bgr, boxes) #crée les paramètres
 
-            ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
+            ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0] #créer le masque à partir des paramètres
             #P = simple_viz_pose(param_lst,ver)
             #print(P)
             
@@ -218,22 +220,18 @@ def main(args):
             elif args.opt == '3d':
                 
                 
-                #recuperation du masque
+                # Récuperation du masque prédit par 3DDFAV2
                 masque = pv.PolyData.from_regular_faces(ver_ave.T,tddfa.tri)
                 
-                
-                
-                
-                
-                #masque.save('masque.stl')
-                #masque = pv.read(r"E:\Antoine\OneDrive - ETS\Program_Files\GitHubs\3DDFA_V2\masque.stl")
-            
+                # Initialisation lors de la première frame
                 if frame_presente == 1 :
                     
-                    
-                    
-                    
-                    
+                    # Appliquer la texture issue du visage sur le nez donné par le médecin
+                    nose_model = trimesh.load(r"E:\Antoine\OneDrive - ETS\Program_Files\PJ137\Dossier patient\patient014_nez.stl") #todo remplacer par un argument de la fonction
+                    # Pre-procesing du nez
+                    nose_mesh = creation_nez.extract_textured_nose(frame_bgr,nose_model)
+                    nose_mesh_ori = video_utils.align_nose_y_axis_PCA(nose_mesh)
+                    nose_mesh=nose_mesh_ori
                     
                     
                     # Recupération du nez a partir du masque, sous la forme de nuage de point
@@ -242,28 +240,25 @@ def main(args):
                         nez_point_cloud = np.insert(nez_point_cloud,0,masque.points[k],axis=0)
                     nez_point_cloud = np.delete(nez_point_cloud,-1,axis=0)
                     
-
-                
-                    #Plusieurs répétitions pour dégager une médiane
-                    for k in range(nombre_de_repetition):
-                        #Global Registration
-                        
-                        
-                        #Aligne le nez du patient sur le masque de la prédiction et remplace le nez du masque i.e. moins précis qu'effectuer une 'vraie' 
-                        #global registration avec la totalité du masque
-                        
-                        target = o3d.geometry.PointCloud()
-                        target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nez_point_cloud.astype(np.float64)))
-                        
-                        source = o3d.geometry.PointCloud()
-                        source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.vertices.astype(np.float64)))
-                        
-                        source,facteur = scale_pcd(source,target)
+                    
+                    # Global Registration
+                    
+                    # Aligne le nez du patient sur le masque de la prédiction et remplace le nez du masque i.e. moins précis qu'effectuer une 'vraie' 
+                    #global registration avec la totalité du masque
+                    
+                    target = o3d.geometry.PointCloud()
+                    target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nez_point_cloud.astype(np.float64)))
+                    
+                    source = o3d.geometry.PointCloud()
+                    source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_mesh.vertices.astype(np.float64)))
+                    
+                    source,facteur = scale_pcd(source,target)
                         
                     
-                    #recuperer les transformations
+                    # Recuperer les transformations
                     R_align,centroid_tgt,centroid_src,icp_result = align_and_center_pcds(source,target)
                     
+                    # Besoin du nez sous forme pyvista car trimesh ne donne pas le centre d'un mesh
                     nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
                     
                     #créer les matrices de transformation
@@ -293,65 +288,69 @@ def main(args):
                     #Enlever la partie 'nez' du masque
                     masque.remove_points(idx_nez,inplace=True)
                     ver_ave = (masque.points).T
-
+                    
                     triangles = masque.faces
                     triangles = np.reshape(triangles,(int(len(triangles)/4),4))
                     triangles = np.delete(triangles,0,1)
                     tddfa.tri = triangles.astype(np.dtype(int))
                     
+                    # Besoin de pyvista pour ajouter le nez (pyvista) au masque (pyvista)
                     nose_mesh_pv = video_utils.trimeshToPyvista(nose_mesh)
-                    
                     masque_modified = masque + nose_mesh_pv 
-                    nose_mesh_pyr = pyrender.Mesh.from_trimesh(nose_mesh)
                     
+                    # Besoin de nez "d'affichage" pour ne pas appliquer le filtre sur le nez de base, ce qui dégrade la qualité du filtre
                     nose_affichage = copy.deepcopy(nose_mesh)
                     nose_affichage2 = copy.deepcopy(nose_affichage)
-                    #Ajouter le nouveau nez au masque
-                    frame_presente = nombre_de_repetition
+                    
+                    
+                    frame_presente = 2
                 
                 else :
                     
+                    # On extrait des nuages de points depuis les mesh pour pouvoir effectuer une global registration
                     target = o3d.geometry.PointCloud()
                     target.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque.points.astype(np.float64)))
                     
                     source = o3d.geometry.PointCloud()
                     source.points = o3d.utility.Vector3dVector(np.ascontiguousarray(masque_modified.points.astype(np.float64)))
-                    if frame_presente == nombre_de_repetition:
+                    
+                    if frame_presente == 2:
                         
                         #création des listes de points de controles qui vont servir lors du recalage, l'opération est couteuse, 
                         #on ne l'effectue qu'une seule fois
                         
                         diff = len(source.points) - len(target.points) + len(idx_nez)
-    
+
+                        # Selection des points du visage sauf le nez                        
                         target_points = [i for i in range(len(target.points)) if i not in idx_nez ]
                         source_points = [i for i in range(diff,len(source.points))]
 
-                        
+                        # Réduit le nombre point à faire correspondre (gagne du temps de calcul)
                         target_points = [target_points[i*10] for i in range (len(target_points)//10)]
                         source_points = [source_points[i*10] for i in range (len(source_points)//10)]
-                        frame_presente = 70
                         
-
-                    voxel_size = 1
-                    
-                    
-                    
-                    source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
+                        frame_presente = 3
+                        
+                    # Prepare les nuages de points pour la registration par correspondance
+                    #source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source,target,10,1)
+                    # Registration par correspondance
                     result_ransac =register_via_correspondences(source,target,target_points,source_points) 
                     
                    
                     
                     #Appliquer la transformation sur le modèle de visage
-                    compteur +=1
                     masque_modified = masque_modified.transform(result_ransac)
                     nose_affichage = nose_affichage.apply_transform(result_ransac)
-                    #todo ici
+                    
+                    # Filtrage des rotations
+                    
+                    # PCA sur le nuage de points extrait du mesh du nez pour en déduire la position et l'orientation
                     nose_affichage_pcd = o3d.geometry.PointCloud()
                     nose_affichage_pcd.points = o3d.utility.Vector3dVector(np.ascontiguousarray(nose_affichage.vertices.astype(np.float64)))
                     centroid, Mat_rot = compute_pca_transform(nose_affichage_pcd)
                     
                    
-                    
+                    #Filtrage de la position
                     pos_x.append(centroid[0])
                     pos_y.append(centroid[1])
                     pos_z.append(centroid[2])
@@ -362,7 +361,6 @@ def main(args):
                     pos_xf.append(pred[0])
                     pos_yf.append(pred[1])
                     pos_zf.append(pred[2])
-                    translate_offset  = np.subtract(pred,centroid)
                     
                     #lissage des rotations
                     rot_filtered = Minilag_rot(Mat_rot)
@@ -380,7 +378,7 @@ def main(args):
                 
                 
                 
-                #Render le masque
+                #Render le masque (méthode 3DDFAV2)
                 
                 # ver_ave = (masque_modified.points).T
                 # triangles = masque_modified.faces
@@ -395,20 +393,20 @@ def main(args):
                 # triangles = np.delete(triangles,0,1)
                 # tddfa.tri = triangles.astype(np.dtype(int))
                 # ver_ave = ver_ave.astype(np.dtype('float32')) #/!\ different du float de numpy qui est float64
-                
-                
-                
-                
-
-                
                 #img_draw = render(queue_frame[n_pre], [ver_ave], tddfa.tri, alpha=0.7)#c35
+                
+                
+                
+                
+                # Renderer Custom
+                
                 scene = renderer.update_screen(frame_bgr,scene,resolution)
                 scene = renderer.update_masque(scene,nose_affichage2)
                 img_draw,depth = r.render(scene) # /!\ plante si une autre fenetre de visualisation a ete ouverte dans le code précédent
                 tddfa.tri = tri_copy
                 img_draw = cv2.cvtColor(img_draw,cv2.COLOR_RGB2BGR)
                 
-                #optimize essayer de mettre les roi depuis les lmks
+                compteur +=1
                 
                 
             else:
@@ -444,8 +442,10 @@ def main(args):
     writer.close()
     r.delete()
     print(f'Dump to {video_wfp}')
-    #---------------------------Display les courbes de position
     
+    
+    #---------------------------Display les courbes de position du centre du mesh
+    '''
     disp_frame = [i for i in range(compteur)]
     track_center = np.asarray(track_center)
     track_center_filtered = np.asarray(track_center_filtered)
@@ -461,13 +461,13 @@ def main(args):
     axs[2].plot(disp_frame,pos_zf,label= 'filtered')
     plt.legend()
     plt.show()
-    
+    '''
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The smooth demo of video of 3DDFA_V2')
     parser.add_argument('-c', '--config', type=str, default='configs/mb1_120x120.yml')
-    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/continu_court.mp4")
+    parser.add_argument('-f', '--video_fp', type=str, default = r"E:/Antoine/OneDrive - ETS/Program_Files/videos test/0.Entrée/homme_cote_masque.mp4")
     parser.add_argument('-m', '--mode', default='gpu', type=str, help='gpu or cpu mode')
     parser.add_argument('-n_pre', default=0, type=int, help='the pre frames of smoothing')
     parser.add_argument('-n_next', default=0, type=int, help='the next frames of smoothing')

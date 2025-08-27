@@ -5,6 +5,7 @@ from DDFAV3.demo import icp_masque
 import argparse
 import open3d as o3d
 
+#------------------Paramètres pour utiliser 3DDFAV3-------------------------------
 
 parser = argparse.ArgumentParser(description='3DDFA-V3')
 
@@ -30,9 +31,9 @@ parser.add_argument('--ldm106_2d', default=False, type=lambda x: x.lower() in ['
                     help='save and show 106 landmarks, face profile is in 2d form')
 parser.add_argument('--ldm134', default=False, type=lambda x: x.lower() in ['true', '1'],
                     help='save and show 134 landmarks' )
-parser.add_argument('--seg', default=True, type=lambda x: x.lower() in ['true', '1'],
+parser.add_argument('--seg', default=False, type=lambda x: x.lower() in ['true', '1'],
                     help='save and show segmentation in 2d without visible mask' )
-parser.add_argument('--seg_visible', default=True, type=lambda x: x.lower() in ['true', '1'],
+parser.add_argument('--seg_visible', default=False, type=lambda x: x.lower() in ['true', '1'],
                     help='save and show segmentation in 2d with visible mask' )
 parser.add_argument('--useTex', default=True, type=lambda x: x.lower() in ['true', '1'],
                     help='save obj use texture from BFM model')
@@ -48,12 +49,24 @@ parser.add_argument('--video',default=False, help = 'runs the program on a video
 #live
 parser.add_argument('--live',default=False, help = 'runs the program on a webcam, will work only with --video also switched on True')
 
+
+
+
+
+
+
 def Trimesh2Open3D(mesh_trimesh):
+    '''
+    Transforme un mesh Trimesh en mesh Open3D 
+    '''
     trimesh.exchange.export.export_mesh(mesh_trimesh,'trimesh2open3d.obj')
     mesh_o3d = o3d.io.read_triangle_mesh('trimesh2open3d.obj')
     return(mesh_o3d)
 
 def Open3D2Trimesh(mesh_o3d):
+    '''
+    Transforme un mesh Open3D en mesh Trimesh
+    '''
     o3d.io.write_triangle_mesh("o3d2trimesh.obj", mesh_o3d)
     mesh_trim = trimesh.load("o3d2trimesh.obj")
     return(mesh_trim)
@@ -67,13 +80,20 @@ def extract_textured_nose(image,nose_model):
     '''
     
     extracted_nose = icp_masque(image,parser.parse_args()) #renvoie le nez avec texture sous forme trimesh
+    
+    #Transforme les modeles trimesh en open3d pour pouvoir effectuer la registration et le transfert de couleur
     extracted_nose = Trimesh2Open3D(extracted_nose)
     nose_model = Trimesh2Open3D(nose_model)
-    textured_nose = Change_texture(mesh_src=extracted_nose,mesh_tgt=nose_model,save=True,visu=False)
-    vertex_colors = np.asarray(textured_nose.vertex_colors)
-    textured_nose = Open3D2Trimesh(textured_nose)
-    textured_nose.visual.face_colors = trimesh.visual.color.vertex_to_face_color(textured_nose.visual.vertex_colors,textured_nose.faces) # Changer couleur par sommet à couleur par face 
     
+    #Transfert de couleur
+    textured_nose = Change_texture(mesh_src=extracted_nose,mesh_tgt=nose_model,save=True,visu=False)
+    
+    
+    #Change la coloration du mesh Trimesh, de coloration par sommet à coloration par face
+    textured_nose = Open3D2Trimesh(textured_nose)
+    textured_nose.show()
+    textured_nose.visual.face_colors = trimesh.visual.color.vertex_to_face_color(textured_nose.visual.vertex_colors,textured_nose.faces) # Changer couleur par sommet à couleur par face 
+    textured_nose.show()
     return(textured_nose)
 
 if __name__ == '__main__':

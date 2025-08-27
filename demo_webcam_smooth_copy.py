@@ -79,7 +79,7 @@ def main(args):
             idx_nez.append(int(line))
         f.close()
     
-    nose_mesh_ori,angle = video_utils.align_nose_y_axis(nose_mesh)
+    nose_mesh_ori,angle = video_utils.align_nose_y_axis_PCA(nose_mesh)
     nose_mesh=nose_mesh_ori
     
    
